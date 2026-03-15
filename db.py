@@ -48,10 +48,15 @@ def insert_expense(expense: Expense) -> int:
         return cursor.lastrowid
 
 
-def run_query(sql: str) -> list[dict]:
-    """Execute a validated SELECT statement and return rows as list-of-dicts."""
+def run_query(sql: str, params: tuple = ()) -> list[dict]:
+    """Execute a validated SELECT statement and return rows as list-of-dicts.
+
+    Args:
+        sql:    A SELECT statement (may contain ? placeholders).
+        params: Bound parameters for the placeholders (default: empty tuple).
+    """
     with get_connection() as conn:
         conn.row_factory = sqlite3.Row
-        cursor = conn.execute(sql)
+        cursor = conn.execute(sql, params)
         rows = cursor.fetchall()
         return [dict(row) for row in rows]

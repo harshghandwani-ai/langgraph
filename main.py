@@ -4,9 +4,10 @@ Expense Logger — main CLI entry point.
 Usage:
     python main.py
 
-Supports two modes in the same REPL:
-  • Log an expense  — "I spent 500 on shoes using UPI"
-  • Query expenses  — "how much did I spend this month"
+Supports three modes in the same REPL:
+  * Log an expense  -- "I spent 500 on shoes using UPI"
+  * Query expenses  -- "how much did I spend this month"
+  * General chat    -- "what was my last query", "hello"
 """
 import json
 import sys
@@ -21,6 +22,7 @@ BANNER = """
 ║                                                      ║
 ║  Log  : "spent 500 on shoes using UPI"               ║
 ║  Query: "how much did I spend this month"            ║
+║  Chat : "what can you do", "what was my last query"  ║
 ║  Exit : quit / exit / q                              ║
 ╚══════════════════════════════════════════════════════╝
 """
@@ -53,6 +55,11 @@ def _handle_query(answer: str) -> None:
     print(f"\n  🤖 {answer}\n")
 
 
+def _handle_chat(answer: str) -> None:
+    """Print the AI's conversational reply."""
+    print(f"\n  🤖 {answer}\n")
+
+
 def main() -> None:
     init_db()
     print(BANNER)
@@ -80,6 +87,8 @@ def main() -> None:
 
         if intent == "query":
             _handle_query(payload)
+        elif intent == "chat":
+            _handle_chat(payload)
         else:
             # payload is the original user text; run the log pipeline
             _handle_log(payload)

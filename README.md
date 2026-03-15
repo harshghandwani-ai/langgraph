@@ -1,122 +1,79 @@
 # Expense Logger — LLM-Powered
 
-A CLI tool that lets you log **and query** expenses in plain English.  
-An LLM (OpenAI) extracts structured fields for logging and generates SQL for queries — all via tool-calling.
+Log and query expenses in plain English via both a **CLI** and a **REST API**.
 
 ## Project Structure
 
 ```
 expense_manager/
-├── main.py            # CLI entry point (dual-mode: log + query)
-├── intent_router.py   # OpenAI tool-calling orchestrator
-├── query_engine.py    # Text-to-SQL pipeline
-├── llm_extractor.py   # Expense extraction (log path)
-├── db.py              # SQLite init, insert, query
-├── models.py          # Pydantic Expense schema
-├── config.py          # Environment variable loading
-├── requirements.txt
-└── README.md
+├── app.py                # FastAPI entry point
+├── routers/
+│   └── expenses.py       # 3 API endpoints
+├── schemas.py            # API request/response models
+├── main.py               # CLI entry point (unchanged)
+├── intent_router.py      # 3-way intent router (CLI)
+├── query_engine.py       # Text-to-SQL pipeline
+├── llm_extractor.py      # Expense extraction
+├── db.py                 # SQLite init, insert, query
+├── models.py             # Pydantic Expense domain model
+├── config.py             # Env var loading
+└── requirements.txt
 ```
 
 ## Setup
 
-### 1. Navigate to the project folder
-
 ```bash
-cd expense_manager
-```
+# 1. Activate virtual environment
+.venv\Scripts\activate          # Windows
+source .venv/bin/activate       # macOS / Linux
 
-### 2. Create and activate a virtual environment
-
-```bash
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-source .venv/bin/activate
-```
-
-### 3. Install dependencies
-
-```bash
+# 2. Install dependencies
 pip install -r requirements.txt
-```
 
-### 4. Set your OpenAI API key
-
-Create a `.env` file in the project root:
-
-```
+# 3. Create .env
 OPENAI_API_KEY=sk-...your-key-here...
+
+# Optional
+DB_PATH=expenses.db
+OPENAI_MODEL=gpt-4o-mini
 ```
 
-Optional overrides:
+---
 
-```
-DB_PATH=expenses.db       # SQLite file path (default: expenses.db)
-OPENAI_MODEL=gpt-4o-mini  # model to use   (default: gpt-4o-mini)
+## Running the API Server
+
+```bash
+uvicorn app:app --reload
 ```
 
-## Usage
+Interactive docs: **http://localhost:8000/docs**
+
+---
+
+## Running the API Client
+
+Alternatively, use the lightweight client that talks to the server:
+
+```bash
+python client.py
+```
+
+This client uses the unified `/api/chat` endpoint, making it a thin wrapper around the server logic.
+
+---
+
+## Running the CLI (Direct DB Access)
 
 ```bash
 python main.py
 ```
 
-The same prompt handles both logging and querying:
-
 ```
-💬 You: I spent 500 on shoes today using UPI         ← logs expense
-💬 You: Paid 1200 for dinner yesterday with credit card
-💬 You: how much did I spend this month              ← queries DB
-💬 You: show my last 5 expenses
-💬 You: what is my biggest expense category
-💬 You: which payment mode did I use the most
+💬 You: spent 500 on shoes using UPI   ← logs
+💬 You: how much did I spend this month ← queries DB
+💬 You: what can you do                 ← general chat
 💬 You: quit
 ```
-
-### Example log output
-
-```
-✅ Saved expense #1:
-  {
-      "amount": 500.0,
-      "category": "shopping",
-      "date": "2026-03-15",
-      "payment_mode": "UPI",
-      "description": "shoes",
-      "id": 1
-  }
-```
-
-### Example query output
-
-```
-🤖 You spent ₹3,200 this month across 4 expenses.
-```
-
-## How It Works
-
-### Logging path
-
-```
-User input → intent_router (no tool called) → llm_extractor → SQLite INSERT
-```
-
-### Query path (Text-to-SQL)
-
-```
-User input → intent_router
-           → OpenAI calls read_expenses tool
-           → query_engine:
-               1. Generate SQL  (LLM + schema + today's date)
-               2. Validate SQL  (only SELECTs allowed)
-               3. Execute SQL   (SQLite)
-               4. Return JSON rows
-           → OpenAI produces human-readable answer
-```
-
-The `intent_router` uses `tool_choice="auto"` — the model decides whether to call the tool based on context.
 
 ## Database Schema
 
@@ -132,14 +89,8 @@ CREATE TABLE expenses (
 );
 ```
 
-The SQLite file (`expenses.db` by default) is created automatically on first run.
-
-## Supported Categories
-
-`food` · `shopping` · `transport` · `entertainment` · `health` · `utilities` · `other`
-
 ## Notes
 
-- If no date is mentioned, today's date is used.
-- If no payment mode is mentioned, `cash` is used.
-- The SQL pipeline rejects any non-`SELECT` statement to prevent mutations via natural language.
+- CORS is open (`*`) for local development — restrict `allow_origins` in `app.py` before deploying.
+- `POST /api/expenses/query` returns `sql` and `rows` alongside the AI answer so a UI can render a table.
+- The SQL pipeline rejects any non-`SELECT` statement to prevent DB mutations via natural language.
