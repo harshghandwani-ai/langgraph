@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from db import init_db
 from routers import expenses
@@ -45,7 +46,9 @@ app.include_router(expenses.router, prefix="/api/expenses", tags=["Expenses"])
 app.include_router(chat.router, prefix="/api/chat", tags=["Chat"])
 
 
-# ── Health check ──────────────────────────────────────────────────────────────
-@app.get("/", tags=["Health"])
+# ── Health & Frontend ─────────────────────────────────────────────────────────
+@app.get("/health", tags=["Health"])
 async def health() -> dict:
     return {"status": "ok", "service": "expense-logger-api"}
+
+app.mount("/", StaticFiles(directory="frontend", html=True), name="frontend")
