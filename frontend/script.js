@@ -3,9 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const messageInput = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
     const chatMessages = document.getElementById('chat-messages');
-    const themeToggle = document.getElementById('theme-toggle');
-    const mobileMenuBtn = document.getElementById('mobile-menu-btn');
-    const sidebar = document.getElementById('sidebar');
     const newChatBtn = document.getElementById('new-chat-btn');
     const welcomeContainer = document.querySelector('.welcome-container');
     const messageTemplate = document.getElementById('message-template');
@@ -39,39 +36,69 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // Theme Toggle
-    themeToggle.addEventListener('click', () => {
+    const toggleTheme = () => {
         const body = document.querySelector('.app-container');
         if (body.classList.contains('theme-dark')) {
             body.classList.remove('theme-dark');
             body.classList.add('theme-light');
-            themeToggle.innerHTML = '<i class="fa-solid fa-moon"></i>';
+            document.getElementById('theme-toggle-desktop').innerHTML = '<i class="fa-solid fa-moon"></i>';
+            document.getElementById('theme-toggle-mobile').innerHTML = '<i class="fa-solid fa-moon"></i>';
         } else {
             body.classList.remove('theme-light');
             body.classList.add('theme-dark');
-            themeToggle.innerHTML = '<i class="fa-solid fa-sun"></i>';
+            document.getElementById('theme-toggle-desktop').innerHTML = '<i class="fa-solid fa-sun"></i>';
+            document.getElementById('theme-toggle-mobile').innerHTML = '<i class="fa-solid fa-sun"></i>';
         }
-    });
+    };
+    
+    const desktopThemeBtn = document.getElementById('theme-toggle-desktop');
+    const mobileThemeBtn = document.getElementById('theme-toggle-mobile');
+    if(desktopThemeBtn) desktopThemeBtn.addEventListener('click', toggleTheme);
+    if(mobileThemeBtn) mobileThemeBtn.addEventListener('click', toggleTheme);
 
-    // Mobile Menu Toggle
-    mobileMenuBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-    });
-
-    // Close sidebar when clicking outside on mobile
-    document.addEventListener('click', (e) => {
-        if (window.innerWidth <= 768) {
-            if (!sidebar.contains(e.target) && !mobileMenuBtn.contains(e.target) && sidebar.classList.contains('open')) {
-                sidebar.classList.remove('open');
+    // Navigation Logic
+    const navItems = document.querySelectorAll('.nav-item, .bottom-nav-item');
+    const pageViews = document.querySelectorAll('.page-view');
+    const fabBtn = document.querySelector('.fab-btn');
+    
+    navItems.forEach(item => {
+        item.addEventListener('click', () => {
+            const targetPage = item.getAttribute('data-page');
+            
+            navItems.forEach(nav => {
+                if(nav.getAttribute('data-page') === targetPage) {
+                    nav.classList.add('active');
+                } else {
+                    nav.classList.remove('active');
+                }
+            });
+            
+            pageViews.forEach(page => {
+                if(page.id === targetPage) {
+                    page.classList.add('active');
+                } else {
+                    page.classList.remove('active');
+                }
+            });
+            
+            if(fabBtn) {
+                if(targetPage === 'page-chat') {
+                    fabBtn.style.display = 'none';
+                } else {
+                    fabBtn.style.display = 'flex';
+                }
             }
-        }
+        });
     });
 
     // New Chat
-    newChatBtn.addEventListener('click', () => {
-        chatMessages.innerHTML = '';
-        chatMessages.appendChild(welcomeContainer);
-        welcomeContainer.style.display = 'block';
-    });
+    if (newChatBtn) {
+        newChatBtn.addEventListener('click', () => {
+            chatMessages.innerHTML = '';
+            chatMessages.appendChild(welcomeContainer);
+            welcomeContainer.style.display = 'block';
+        });
+    }
 
     // Form Submit
     chatForm.addEventListener('submit', async (e) => {

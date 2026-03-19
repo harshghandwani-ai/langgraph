@@ -9,21 +9,19 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="app-container theme-dark">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
+    <div class="app-container theme-light">
+        <!-- Sidebar for Desktop -->
+        <aside class="sidebar desktop-only" id="sidebar">
             <div class="sidebar-header">
-                <h2><i class="fa-solid fa-wallet gradient-text"></i> ExpenseLogger</h2>
-                <button id="new-chat-btn" class="icon-btn" title="New Chat"><i class="fa-solid fa-pen-to-square"></i></button>
+                <h2><i class="fa-solid fa-wallet gradient-text"></i> PennyWise AI</h2>
+                <button id="theme-toggle-desktop" class="icon-btn" title="Toggle Theme"><i class="fa-solid fa-moon"></i></button>
             </div>
             <div class="sidebar-content">
-                <p class="sidebar-label">Recent</p>
-                <div class="chat-history">
-                    <div class="chat-item active">
-                        <i class="fa-regular fa-message"></i>
-                        <span>Current Session</span>
-                    </div>
-                </div>
+                <nav class="side-nav">
+                    <button class="nav-item active" data-page="page-chat"><i class="fa-regular fa-message"></i> Chat</button>
+                    <button class="nav-item" data-page="page-stats"><i class="fa-solid fa-chart-pie"></i> Stats</button>
+                    <button class="nav-item" data-page="page-history"><i class="fa-solid fa-clock-rotate-left"></i> History</button>
+                </nav>
             </div>
             <div class="sidebar-footer">
                 <div class="user-profile">
@@ -33,37 +31,208 @@
             </div>
         </aside>
 
-        <!-- Main Chat Area -->
-        <main class="chat-main">
-            <header class="chat-header">
-                <button id="mobile-menu-btn" class="icon-btn mobile-only"><i class="fa-solid fa-bars"></i></button>
-                <h3 class="model-name">Agentic Expense AI <span class="badge">Beta</span></h3>
-                <div class="header-actions">
-                    <button id="theme-toggle" class="icon-btn" title="Toggle Theme"><i class="fa-solid fa-sun"></i></button>
-                </div>
-            </header>
+        <!-- Main Content Area -->
+        <main class="main-content">
+            
+            <!-- Chat Page -->
+            <div id="page-chat" class="page-view active">
+                <header class="chat-header mobile-only">
+                    <h3 class="model-name"><i class="fa-solid fa-wallet gradient-text"></i> PennyWise AI</h3>
+                    <button id="theme-toggle-mobile" class="icon-btn"><i class="fa-solid fa-moon"></i></button>
+                </header>
 
-            <div class="chat-messages" id="chat-messages">
-                <div class="welcome-container">
-                    <div class="welcome-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
-                    <h1>How can I help you today?</h1>
-                    <p>Log expenses or query your spending history.</p>
+                <div class="chat-messages" id="chat-messages">
+                    <div class="welcome-container">
+                        <div class="welcome-icon"><i class="fa-solid fa-money-bill-wave"></i></div>
+                        <h1>How can I help you today?</h1>
+                        <p>Log expenses or query your spending history.</p>
+                    </div>
+                </div>
+
+                <div class="chat-input-wrapper">
+                    <div class="chat-input-container">
+                        <form id="chat-form" class="chat-form">
+                            <button type="button" class="action-btn" title="Attach"><i class="fa-solid fa-plus"></i></button>
+                            <textarea id="message-input" placeholder="Message PennyWise AI..." rows="1" autofocus></textarea>
+                            <button type="submit" class="send-btn" id="send-btn" disabled><i class="fa-solid fa-arrow-up"></i></button>
+                        </form>
+                    </div>
                 </div>
             </div>
 
-            <div class="chat-input-wrapper">
-                <div class="chat-input-container">
-                    <form id="chat-form" class="chat-form">
-                        <button type="button" class="action-btn" title="Attach (coming soon)"><i class="fa-solid fa-plus"></i></button>
-                        <textarea id="message-input" placeholder="Message ExpenseLogger..." rows="1" autofocus></textarea>
-                        <button type="submit" class="send-btn" id="send-btn" disabled><i class="fa-solid fa-arrow-up"></i></button>
-                    </form>
-                </div>
-                <div class="input-footer">
-                    ExpenseLogger can make mistakes. Verify important financial data.
+            <!-- Stats Page -->
+            <div id="page-stats" class="page-view">
+                <header class="page-header">
+                    <h3 class="model-name"><i class="fa-solid fa-wallet gradient-text"></i> PennyWise AI</h3>
+                    <button class="icon-btn"><i class="fa-solid fa-gear"></i></button>
+                </header>
+                
+                <div class="stats-scroll-content">
+                    <div class="balance-card">
+                        <div class="balance-title">Current Balance</div>
+                        <div class="balance-amount">$2,176.51</div>
+                        <div class="balance-stats">
+                            <div class="stat-box income">
+                                <div class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                                <div class="stat-details">
+                                    <span>INCOME</span>
+                                    <span class="stat-val">$3,500</span>
+                                </div>
+                            </div>
+                            <div class="stat-box expenses">
+                                <div class="stat-icon"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                                <div class="stat-details">
+                                    <span>EXPENSES</span>
+                                    <span class="stat-val">$1,323.49</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="section-top-categories">
+                        <div class="section-header">
+                            <h3>Top Categories</h3>
+                            <a href="#" class="details-link">Details <i class="fa-solid fa-chevron-right"></i></a>
+                        </div>
+                        <div class="categories-card">
+                            <div class="category-item">
+                                <div class="cat-header">
+                                    <span class="cat-name"><span class="dot color-1"></span> Rent</span>
+                                    <span class="cat-amount">$1200.00</span>
+                                </div>
+                                <div class="progress-bar-bg"><div class="progress-bar color-1" style="width: 80%"></div></div>
+                            </div>
+                            <div class="category-item">
+                                <div class="cat-header">
+                                    <span class="cat-name"><span class="dot color-2"></span> Transport</span>
+                                    <span class="cat-amount">$65.00</span>
+                                </div>
+                                <div class="progress-bar-bg"><div class="progress-bar color-2" style="width: 15%"></div></div>
+                            </div>
+                            <div class="category-item">
+                                <div class="cat-header">
+                                    <span class="cat-name"><span class="dot color-3"></span> Food</span>
+                                    <span class="cat-amount">$45.50</span>
+                                </div>
+                                <div class="progress-bar-bg"><div class="progress-bar color-3" style="width: 8%"></div></div>
+                            </div>
+                            <div class="category-item">
+                                <div class="cat-header">
+                                    <span class="cat-name"><span class="dot color-4"></span> Entertainment</span>
+                                    <span class="cat-amount">$12.99</span>
+                                </div>
+                                <div class="progress-bar-bg"><div class="progress-bar color-4" style="width: 3%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="action-cards">
+                        <div class="action-card">
+                            <div class="action-icon text-warning"><i class="fa-solid fa-filter"></i></div>
+                            <span>Set Budget</span>
+                        </div>
+                        <div class="action-card">
+                            <div class="action-icon text-primary"><i class="fa-regular fa-calendar"></i></div>
+                            <span>Export CSV</span>
+                        </div>
+                    </div>
                 </div>
             </div>
+            
+            <!-- History Page -->
+            <div id="page-history" class="page-view">
+                <header class="page-header">
+                    <h3 class="model-name"><i class="fa-solid fa-wallet gradient-text"></i> PennyWise AI</h3>
+                    <button class="icon-btn"><i class="fa-solid fa-gear"></i></button>
+                </header>
+                <div class="history-scroll-content">
+                    <div class="section-header">
+                        <h3>Recent Transactions</h3>
+                        <button class="icon-btn" style="color: var(--text-secondary); width: auto; height: auto;"><i class="fa-solid fa-filter"></i></button>
+                    </div>
+                    
+                    <div class="transaction-list">
+                        <!-- Transaction Items -->
+                        <div class="txn-card">
+                            <div class="txn-icon-wrapper" style="color: #4a5ee7; background-color: rgba(74, 94, 231, 0.08);">
+                                F
+                            </div>
+                            <div class="txn-details">
+                                <div class="txn-title">Lunch at Chipotle</div>
+                                <div class="txn-subtitle">Food &bull; 2023-10-25</div>
+                            </div>
+                            <div class="txn-amount negative">-$45.50</div>
+                        </div>
+                        
+                        <div class="txn-card">
+                            <div class="txn-icon-wrapper" style="color: #6c757d; background-color: rgba(108, 117, 125, 0.08);">
+                                R
+                            </div>
+                            <div class="txn-details">
+                                <div class="txn-title">Monthly Rent</div>
+                                <div class="txn-subtitle">Rent &bull; 2023-10-24</div>
+                            </div>
+                            <div class="txn-amount negative">-$1200.00</div>
+                        </div>
+                        
+                        <div class="txn-card">
+                            <div class="txn-icon-wrapper" style="color: #10a37f; background-color: rgba(16, 163, 127, 0.08);">
+                                S
+                            </div>
+                            <div class="txn-details">
+                                <div class="txn-title">Tech Corp Paycheck</div>
+                                <div class="txn-subtitle">Salary &bull; 2023-10-23</div>
+                            </div>
+                            <div class="txn-amount positive">+$3500.00</div>
+                        </div>
+                        
+                        <div class="txn-card">
+                            <div class="txn-icon-wrapper" style="color: #6c757d; background-color: rgba(108, 117, 125, 0.08);">
+                                T
+                            </div>
+                            <div class="txn-details">
+                                <div class="txn-title">Uber to Airport</div>
+                                <div class="txn-subtitle">Transport &bull; 2023-10-22</div>
+                            </div>
+                            <div class="txn-amount negative">-$65.00</div>
+                        </div>
+                        
+                        <div class="txn-card">
+                            <div class="txn-icon-wrapper" style="color: #6c757d; background-color: rgba(108, 117, 125, 0.08);">
+                                E
+                            </div>
+                            <div class="txn-details">
+                                <div class="txn-title">Netflix Subscription</div>
+                                <div class="txn-subtitle">Entertainment &bull; 2023-10-20</div>
+                            </div>
+                            <div class="txn-actions-amount">
+                                <div class="txn-amount negative">-$12.99</div>
+                                <button class="delete-btn" title="Delete"><i class="fa-regular fa-trash-can"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Global Action Button (FAB) -->
+            <button class="fab-btn page-stats history page-history" style="display: none;"><i class="fa-solid fa-plus"></i></button>
         </main>
+
+        <!-- Bottom Navigation for Mobile -->
+        <nav class="bottom-nav mobile-only">
+            <button class="bottom-nav-item active" data-page="page-chat">
+                <i class="fa-regular fa-message"></i>
+                <span>CHAT</span>
+            </button>
+            <button class="bottom-nav-item" data-page="page-stats">
+                <i class="fa-solid fa-chart-pie"></i>
+                <span>STATS</span>
+            </button>
+            <button class="bottom-nav-item" data-page="page-history">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>HISTORY</span>
+            </button>
+        </nav>
     </div>
     
     <!-- Template for messages -->
