@@ -121,6 +121,7 @@ def execute_read_expenses(query_text: str) -> str:
     return _format_result(rows)
 
 
+
 def summarize_results(user_input: str, tool_result: str) -> str:
     """
     Takes the raw JSON rows string from execute_read_expenses and the original user query,
