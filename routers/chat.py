@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException
 from db import insert_expense, run_query
 from intent_router import route
 from models import Expense
+from query_engine import execute_read_expenses, summarize_results
 from schemas import ChatRequest, ChatResponse, LogResponse
 
 router = APIRouter()
@@ -52,5 +53,14 @@ async def chat(body: ChatRequest) -> ChatResponse:
         )
         return ChatResponse(intent="log", answer=answer, expense=saved)
 
-    # ── QUERY or CHAT ─────────────────────────────────────────────────────────
+    # ── QUERY ─────────────────────────────────────────────────────────────────
+    if intent == "query":
+        try:
+            tool_result = execute_read_expenses(payload)
+            answer = summarize_results(body.message, tool_result)
+            return ChatResponse(intent="query", answer=answer, expense=None)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to query expenses: {exc}") from exc
+
+    # ── CHAT ──────────────────────────────────────────────────────────────────
     return ChatResponse(intent=intent, answer=payload, expense=None)

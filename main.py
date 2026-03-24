@@ -14,6 +14,7 @@ import sys
 from db import init_db, insert_expense
 from llm_extractor import extract_expense
 from intent_router import route
+from query_engine import execute_read_expenses, summarize_results
 
 
 BANNER = """
@@ -50,8 +51,11 @@ def _handle_log(user_input: str) -> None:
     print()
 
 
-def _handle_query(answer: str) -> None:
-    """Print the AI's natural-language answer to a spending question."""
+def _handle_query(query_text: str, user_input: str) -> None:
+    """Execute SQL and print the AI's natural-language answer."""
+    print("  ⏳ Querying database...")
+    tool_result = execute_read_expenses(query_text)
+    answer = summarize_results(user_input, tool_result)
     print(f"\n  🤖 {answer}\n")
 
 
@@ -86,13 +90,14 @@ def main() -> None:
             continue
 
         if intent == "query":
-            _handle_query(payload)
+            _handle_query(payload, user_input)
+            
         elif intent == "chat":
             _handle_chat(payload)
+          
         else:
             # payload is the original user text; run the log pipeline
             _handle_log(payload)
-
 
 if __name__ == "__main__":
     main()

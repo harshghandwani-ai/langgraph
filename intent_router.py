@@ -11,12 +11,35 @@ import json
 from datetime import date
 from typing import Any
 from openai import OpenAI
-from query_engine import TOOL_DEFINITION, execute_read_expenses
 from config import OPENAI_API_KEY, OPENAI_MODEL
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 
 TODAY = date.today().isoformat()
+
+
+
+QUERY_TOOL_DEFINITION = {
+    "type": "function",
+    "function": {
+        "name": "read_expenses",
+        "description": (
+            "Query the local expenses SQLite database. "
+            "Use this whenever the user asks about their spending, "
+            "totals, categories, payment modes, or history."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "query": {
+                    "type": "string",
+                    "description": "The user's natural-language question about their expenses.",
+                }
+            },
+            "required": ["query"],
+        },
+    },
+}
 
 LOG_TOOL_DEFINITION = {
     "type": "function",
@@ -78,7 +101,7 @@ def route(user_input: str) -> tuple[str, Any]:
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=messages,
-        tools=[TOOL_DEFINITION, LOG_TOOL_DEFINITION],
+        tools=[QUERY_TOOL_DEFINITION, LOG_TOOL_DEFINITION],
         tool_choice="auto",
         temperature=0,
     )
@@ -95,26 +118,7 @@ def route(user_input: str) -> tuple[str, Any]:
 
         elif tool_call.function.name == "read_expenses":
             query_text = args.get("query", user_input)
-
-            # Run the Text-to-SQL pipeline
-            tool_result = execute_read_expenses(query_text)
-
-            # Second LLM call — turn raw JSON rows into a human-readable answer
-            messages.append(choice.message)
-            messages.append({
-                "role": "tool",
-                "tool_call_id": tool_call.id,
-                "content": tool_result,
-            })
-
-            final_response = client.chat.completions.create(
-                model=OPENAI_MODEL,
-                messages=messages,
-                temperature=0.3,
-            )
-
-            answer = final_response.choices[0].message.content.strip()
-            return ("query", answer)
+            return ("query", query_text)
 
     # ---- No tool call: fallback to chat response ----
     reply = choice.message.content.strip() if choice.message.content else ""

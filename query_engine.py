@@ -119,3 +119,24 @@ def execute_read_expenses(query_text: str) -> str:
     sql = _validate_sql(sql)
     rows = _execute_sql(sql)
     return _format_result(rows)
+
+
+def summarize_results(user_input: str, tool_result: str) -> str:
+    """
+    Takes the raw JSON rows string from execute_read_expenses and the original user query,
+    and returns a conversational natural-language answer.
+    """
+    system_prompt = (
+        "You are a helpful personal finance assistant. "
+        "Answer the user's question based strictly on the provided database results. "
+        "Amount is in ₹"
+    )
+    response = client.chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"User question: {user_input}\n\nDatabase results:\n{tool_result}"}
+        ],
+        temperature=0.3,
+    )
+    return response.choices[0].message.content.strip()
