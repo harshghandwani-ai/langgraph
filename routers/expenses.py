@@ -121,7 +121,7 @@ async def get_stats() -> dict:
         total_rows = run_query("SELECT SUM(amount) as total FROM expenses")
         total = total_rows[0]["total"] if total_rows and total_rows[0]["total"] else 0.0
         cat_rows = run_query(
-            "SELECT category, SUM(amount) as total FROM expenses "
+            "SELECT LOWER(category) as category, SUM(amount) as total FROM expenses "
             "GROUP BY LOWER(category) ORDER BY total DESC LIMIT 4"
         )
         categories = [{"name": r["category"], "amount": r["total"]} for r in cat_rows]
