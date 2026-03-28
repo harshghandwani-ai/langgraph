@@ -11,20 +11,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from db import init_db
-import ocr
 from routers import expenses
 from routers import chat
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialise the database and pre-warm the OCR engine on startup."""
+    """Initialise the database on startup."""
     init_db()
-    # Try to pre-warm PaddleOCR — non-fatal if it fails (e.g. on HF Spaces free tier).
-    try:
-        ocr.get_engine()
-    except Exception as exc:
-        print(f"WARNING: OCR engine pre-warm failed ({exc}). It will initialise on first upload.")
     yield
 
 
