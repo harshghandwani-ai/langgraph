@@ -7,3 +7,7 @@ error.log
 ocr.log
 *.log
 current_error.log
+expenses.db
+uploads/
+_fix_js.py
+_write_expenses.py

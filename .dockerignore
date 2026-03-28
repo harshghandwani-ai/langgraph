@@ -1,0 +1,39 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# Secrets — never in the image
+.env
+.env.*
+
+# Local DB — production uses Neon
+expenses.db
+*.db
+
+# Uploaded receipt images — ephemeral, not needed in image
+uploads/
+
+# Logs
+*.log
+error.log
+ocr.log
+current_error.log
+
+# Dev / helper scripts
+_fix_js.py
+_write_expenses.py
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
