@@ -11,14 +11,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from db import init_db
+import ocr
 from routers import expenses
 from routers import chat
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Initialise the database on startup."""
+    """Initialise the database and pre-warm the OCR engine on startup."""
     init_db()
+    # Load the PaddleOCR model once at startup so the first upload is fast.
+    ocr.get_engine()
     yield
 
 

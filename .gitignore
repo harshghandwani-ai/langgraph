@@ -3,3 +3,7 @@
 __pycache__/
 *.pyc
 .venv/
+error.log
+ocr.log
+*.log
+current_error.log

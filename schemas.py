@@ -55,6 +55,34 @@ class ExpenseRecord(BaseModel):
     created_at: str
 
 
+# ── Preview / Confirm (two-step logging) ─────────────────────────────────────
+
+class ExpensePreview(BaseModel):
+    """
+    Extracted expense fields returned BEFORE the user confirms.
+    Has no id or created_at — nothing has been saved to the DB yet.
+    """
+    amount: float = Field(..., description="Monetary amount extracted by LLM.")
+    category: str = Field(..., description="One of: food, shopping, transport, entertainment, health, utilities, other.")
+    date: str = Field(..., description="Date in YYYY-MM-DD format.")
+    payment_mode: str = Field(..., description="e.g. cash, UPI, credit card.")
+    description: str = Field(..., description="Brief noun phrase of what was bought.")
+    ocr_text: Optional[str] = Field(None, description="Raw PaddleOCR output — only set on image uploads.")
+    source: Optional[str] = Field(None, description="'image' or 'text', used by the frontend to show context.")
+
+
+class ConfirmRequest(BaseModel):
+    """
+    Fields the user submits when they click 'Confirm & Save'.
+    Accepts the (possibly user-edited) expense fields.
+    """
+    amount: float = Field(..., gt=0, description="Must be a positive number.")
+    category: str = Field(..., description="One of: food, shopping, transport, entertainment, health, utilities, other.")
+    date: str = Field(..., description="Date in YYYY-MM-DD format.")
+    payment_mode: str = Field(..., description="e.g. cash, UPI, credit card.")
+    description: str = Field(..., description="Brief noun phrase of what was bought.")
+
+
 # ── Chat (unified intent) models ──────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
@@ -68,5 +96,8 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     intent: str = Field(..., description="Detected intent: 'log', 'query', or 'chat'.")
     answer: str = Field(..., description="AI natural-language reply.")
-    expense: Optional[LogResponse] = Field(None, description="Populated only when intent=='log'.")
-
+    expense: Optional[ExpensePreview] = Field(
+        None,
+        description="Populated with an UNCONFIRMED preview when intent=='log'. "
+                    "The frontend must call POST /api/expenses/confirm to save it.",
+    )

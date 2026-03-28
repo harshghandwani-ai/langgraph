@@ -1,21 +1,17 @@
 """
-routers/chat.py — Unified /api/chat endpoint.
+routers/chat.py -- Unified /api/chat endpoint.
 
 Accepts any natural-language message and routes it to the correct pipeline:
-  - log   → extract_expense + insert_expense  → returns saved expense
-  - query → Text-to-SQL pipeline              → returns AI answer
-  - chat  → direct LLM reply                 → returns AI answer
+  - log   -> LLM extracts expense fields, returns ExpensePreview (NOT saved yet)
+             The frontend must call POST /api/expenses/confirm to save.
+  - query -> Text-to-SQL pipeline -> returns AI answer
+  - chat  -> direct LLM reply    -> returns AI answer
 """
-import json
-from datetime import date
-
 from fastapi import APIRouter, HTTPException
 
-from db import insert_expense, run_query
 from intent_router import route
-from models import Expense
 from query_engine import execute_read_expenses, summarize_results
-from schemas import ChatRequest, ChatResponse, LogResponse
+from schemas import ChatRequest, ChatResponse, ExpensePreview
 
 router = APIRouter()
 
@@ -25,8 +21,9 @@ router = APIRouter()
     response_model=ChatResponse,
     summary="Unified chat endpoint",
     description=(
-        "Send any natural-language message. The server automatically routes it to "
-        "log an expense, query spending history, or answer general questions."
+        "Send any natural-language message. The server routes it to "
+        "log an expense (returns preview for confirmation), "
+        "query spending history, or answer general questions."
     ),
 )
 async def chat(body: ChatRequest) -> ChatResponse:
@@ -35,32 +32,40 @@ async def chat(body: ChatRequest) -> ChatResponse:
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Intent routing failed: {exc}") from exc
 
-    # ── LOG ───────────────────────────────────────────────────────────────────
+    # ---- LOG: extract fields, return preview -- do NOT save to DB -----------
     if intent == "log":
         try:
-            expense = Expense(**payload)
-            row_id = insert_expense(expense)
+            preview = ExpensePreview(
+                amount=payload["amount"],
+                category=payload["category"],
+                date=payload["date"],
+                payment_mode=payload["payment_mode"],
+                description=payload["description"],
+                ocr_text=None,
+                source="text",
+            )
         except Exception as exc:
-            raise HTTPException(status_code=422, detail=f"Expense logging failed: {exc}") from exc
+            raise HTTPException(
+                status_code=422,
+                detail=f"Could not build expense preview from extracted data: {exc}",
+            ) from exc
 
-        rows = run_query("SELECT * FROM expenses WHERE id = ?", (row_id,))
-        saved = LogResponse(**rows[0]) if rows else None
-
-        fields = expense.model_dump()
         answer = (
-            f"Logged expense #{row_id}: {fields['description']} — "
-            f"₹{fields['amount']} ({fields['category']}) on {fields['date']} via {fields['payment_mode']}."
+            f"Here's what I extracted from your message. "
+            f"Please review the details below and confirm (or edit) before saving."
         )
-        return ChatResponse(intent="log", answer=answer, expense=saved)
+        return ChatResponse(intent="log", answer=answer, expense=preview)
 
-    # ── QUERY ─────────────────────────────────────────────────────────────────
+    # ---- QUERY --------------------------------------------------------------
     if intent == "query":
         try:
             tool_result = execute_read_expenses(payload)
             answer = summarize_results(body.message, tool_result)
             return ChatResponse(intent="query", answer=answer, expense=None)
         except Exception as exc:
-            raise HTTPException(status_code=500, detail=f"Failed to query expenses: {exc}") from exc
+            raise HTTPException(
+                status_code=500, detail=f"Failed to query expenses: {exc}"
+            ) from exc
 
-    # ── CHAT ──────────────────────────────────────────────────────────────────
+    # ---- CHAT ---------------------------------------------------------------
     return ChatResponse(intent=intent, answer=payload, expense=None)

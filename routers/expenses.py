@@ -1,16 +1,20 @@
 """
-routers/expenses.py — FastAPI router with 3 expense endpoints.
+routers/expenses.py -- FastAPI router for all expense endpoints.
 
 Endpoints:
-  POST /api/expenses          — log a new expense from natural language
-  POST /api/expenses/query    — query past expenses in natural language
-  GET  /api/expenses          — list expenses with optional filters
+  POST /api/expenses              -- log from natural language
+  POST /api/expenses/query        -- query in natural language
+  POST /api/expenses/upload       -- receipt image -> ExpensePreview (NO DB save)
+  POST /api/expenses/confirm      -- save confirmed/edited preview to DB
+  GET  /api/expenses/stats        -- statistics
+  GET  /api/expenses/export       -- CSV download
+  GET  /api/expenses              -- list with filters
 """
 import csv
 import io
 import json
 import os
-import shutil
+import uuid
 from datetime import date
 from typing import Optional
 
@@ -19,8 +23,18 @@ from openai import OpenAI
 
 from db import insert_expense, run_query
 from llm_extractor import extract_expense
+from models import Expense
+from ocr import get_engine
 from query_engine import _generate_sql, _validate_sql, _execute_sql
-from schemas import ExpenseRecord, LogRequest, LogResponse, QueryRequest, QueryResponse
+from schemas import (
+    ConfirmRequest,
+    ExpensePreview,
+    ExpenseRecord,
+    LogRequest,
+    LogResponse,
+    QueryRequest,
+    QueryResponse,
+)
 from config import OPENAI_API_KEY, OPENAI_MODEL
 
 router = APIRouter()
@@ -29,18 +43,18 @@ _client = OpenAI(api_key=OPENAI_API_KEY)
 
 TODAY = date.today().isoformat()
 
-# ── Query summarisation prompt ────────────────────────────────────────────────
+# -- Query summarisation prompt ----------------------------------------
+
 _SUMMARY_SYSTEM = (
     "You are a helpful expense assistant. "
     "Given a user question and raw database results in JSON, "
     "write a concise, friendly natural-language answer. "
-    "Use currency amounts naturally (no symbol needed if unclear). "
+    "Use currency amounts naturally. "
     "If there are no results, say so politely."
 )
 
 
 def _summarise(question: str, rows: list[dict], sql: str) -> str:
-    """Ask the LLM to turn raw rows into a human-readable answer."""
     payload = json.dumps({"question": question, "sql": sql, "rows": rows}, default=str)
     response = _client.chat.completions.create(
         model=OPENAI_MODEL,
@@ -53,43 +67,35 @@ def _summarise(question: str, rows: list[dict], sql: str) -> str:
     return response.choices[0].message.content.strip()
 
 
-# ── POST /api/expenses — log a new expense ────────────────────────────────────
+# -- POST /api/expenses ------------------------------------------------
 
 @router.post(
     "",
     response_model=LogResponse,
     status_code=201,
     summary="Log a new expense",
-    description="Extract structured fields from natural-language text and save to the database.",
 )
 async def log_expense(body: LogRequest) -> LogResponse:
     try:
         expense = extract_expense(body.text)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"LLM extraction failed: {exc}") from exc
-
     try:
         row_id = insert_expense(expense)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database insert failed: {exc}") from exc
-
-    # Fetch the saved row to include created_at
     rows = run_query("SELECT * FROM expenses WHERE id = ?", (row_id,))
     if not rows:
         raise HTTPException(status_code=500, detail="Expense saved but could not be retrieved.")
     return LogResponse(**rows[0])
 
 
-# ── POST /api/expenses/query — natural-language query ────────────────────────
+# -- POST /api/expenses/query ------------------------------------------
 
 @router.post(
     "/query",
     response_model=QueryResponse,
     summary="Query expenses in natural language",
-    description=(
-        "Translates a natural-language question into SQL, executes it, "
-        "and returns both raw rows and an AI-generated summary."
-    ),
 )
 async def query_expenses(body: QueryRequest) -> QueryResponse:
     try:
@@ -100,110 +106,167 @@ async def query_expenses(body: QueryRequest) -> QueryResponse:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Query pipeline failed: {exc}") from exc
-
     try:
         answer = _summarise(body.question, rows, sql)
     except Exception as exc:
-        # Summarisation is best-effort; fallback to raw JSON string
         answer = f"Query returned {len(rows)} row(s). (Summarisation failed: {exc})"
-
     return QueryResponse(answer=answer, sql=sql, rows=rows)
 
 
-# ── GET /api/expenses/stats — get expense statistics ────────────────────────
+# -- GET /api/expenses/stats -------------------------------------------
 
-@router.get(
-    "/stats",
-    summary="Get expense statistics",
-    description="Return total expenses and top categories.",
-)
+@router.get("/stats", summary="Get expense statistics")
 async def get_stats() -> dict:
     try:
-        # Total expenses
         total_rows = run_query("SELECT SUM(amount) as total FROM expenses")
         total = total_rows[0]["total"] if total_rows and total_rows[0]["total"] else 0.0
-
-        # Top categories (top 4)
-        cat_rows = run_query("""
-            SELECT category, SUM(amount) as total 
-            FROM expenses 
-            GROUP BY LOWER(category) 
-            ORDER BY total DESC 
-            LIMIT 4
-        """)
-        
-        categories = [{"name": row["category"], "amount": row["total"]} for row in cat_rows]
-        
-        return {
-            "total_expenses": total,
-            "top_categories": categories
-        }
+        cat_rows = run_query(
+            "SELECT category, SUM(amount) as total FROM expenses "
+            "GROUP BY LOWER(category) ORDER BY total DESC LIMIT 4"
+        )
+        categories = [{"name": r["category"], "amount": r["total"]} for r in cat_rows]
+        return {"total_expenses": total, "top_categories": categories}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database query failed: {exc}") from exc
 
 
-# ── GET /api/expenses/export — export expenses to CSV ─────────────────────────
+# -- GET /api/expenses/export ------------------------------------------
 
-@router.get(
-    "/export",
-    summary="Export expenses to CSV",
-    description="Download all expenses as a CSV file.",
-)
+@router.get("/export", summary="Export expenses to CSV")
 async def export_csv():
     try:
         rows = run_query("SELECT * FROM expenses ORDER BY date DESC, id DESC")
-        
         output = io.StringIO()
-        writer = csv.DictWriter(output, fieldnames=["id", "amount", "category", "date", "payment_mode", "description", "created_at"])
+        writer = csv.DictWriter(
+            output,
+            fieldnames=["id","amount","category","date","payment_mode","description","created_at"],
+        )
         writer.writeheader()
         writer.writerows(rows)
-        
         return Response(
             content=output.getvalue(),
             media_type="text/csv",
-            headers={"Content-Disposition": 'attachment; filename="expenses.csv"'}
+            headers={"Content-Disposition": 'attachment; filename="expenses.csv"'},
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database export failed: {exc}") from exc
 
 
-# ── POST /api/expenses/upload — upload an image ───────────────────────────────
+# -- POST /api/expenses/upload  (OCR + LLM preview, NO DB save) --------
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+ALLOWED_MIME_PREFIXES = ("image/jpeg", "image/png", "image/webp", "image/bmp", "image/tiff")
+
 
 @router.post(
     "/upload",
-    summary="Upload an image",
-    description="Upload an image (e.g. receipt). Currently just saves it to disk.",
+    response_model=ExpensePreview,
+    status_code=200,
+    summary="Upload a receipt image (preview only)",
 )
-async def upload_image(file: UploadFile = File(...)):
+async def upload_image(file: UploadFile = File(...)) -> ExpensePreview:
+    content_type = file.content_type or ""
+    if not any(content_type.startswith(p) for p in ALLOWED_MIME_PREFIXES):
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported file type {content_type!r}. Please upload JPEG, PNG, WebP, BMP, or TIFF.",
+        )
     try:
-        file_path = os.path.join(UPLOAD_DIR, file.filename)
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-        return {"status": "success", "filename": file.filename, "message": "Image uploaded successfully"}
+        file_bytes = await file.read()
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Failed to upload image: {exc}") from exc
+        raise HTTPException(status_code=500, detail=f"Failed to read uploaded file: {exc}") from exc
+    if len(file_bytes) > MAX_IMAGE_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Image too large ({len(file_bytes)//(1024*1024)} MB). Max 10 MB.",
+        )
+    original_name = os.path.basename(file.filename or "upload")
+    safe_filename = f"{uuid.uuid4().hex}_{original_name}"
+    file_path = os.path.join(UPLOAD_DIR, safe_filename)
+    try:
+        with open(file_path, "wb") as f:
+            f.write(file_bytes)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to save image to disk: {exc}") from exc
+    try:
+        raw_text: str = get_engine().extract_raw_text(os.path.abspath(file_path))
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=f"OCR processing failed: {exc}") from exc
+    if not raw_text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="No readable text detected. Please upload a clear photo of a receipt.",
+        )
+    try:
+        expense = extract_expense(raw_text)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not extract expense from image text: {exc}",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"LLM extraction failed: {exc}") from exc
+    return ExpensePreview(
+        amount=expense.amount,
+        category=expense.category,
+        date=expense.date,
+        payment_mode=expense.payment_mode,
+        description=expense.description,
+        ocr_text=raw_text,
+        source="image",
+    )
 
 
-# ── GET /api/expenses — list expenses with optional filters ───────────────────
+# -- POST /api/expenses/confirm  (save confirmed expense to DB) ----------
+
+@router.post(
+    "/confirm",
+    response_model=LogResponse,
+    status_code=201,
+    summary="Confirm and save an expense",
+    description=(
+        "Takes the (possibly user-edited) fields and saves them to the DB. "
+        "Call this after /upload or after a log intent from /api/chat."
+    ),
+)
+async def confirm_expense(body: ConfirmRequest) -> LogResponse:
+    try:
+        expense = Expense(
+            amount=body.amount,
+            category=body.category,
+            date=body.date,
+            payment_mode=body.payment_mode,
+            description=body.description,
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail=f"Invalid expense data: {exc}") from exc
+    try:
+        row_id = insert_expense(expense)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Database insert failed: {exc}") from exc
+    rows = run_query("SELECT * FROM expenses WHERE id = ?", (row_id,))
+    if not rows:
+        raise HTTPException(status_code=500, detail="Expense was saved but could not be retrieved.")
+    return LogResponse(**rows[0])
+
+
+# -- GET /api/expenses  (list with optional filters) --------------------
 
 @router.get(
     "",
     response_model=list[ExpenseRecord],
     summary="List expenses",
-    description="Return expenses with optional filters for category, date range, and limit.",
 )
 async def list_expenses(
-    category: Optional[str] = Query(None, description="Filter by category (e.g. food, shopping)"),
-    date_from: Optional[str] = Query(None, description="Start date in YYYY-MM-DD format"),
-    date_to: Optional[str] = Query(None, description="End date in YYYY-MM-DD format (defaults to today)"),
-    limit: int = Query(50, ge=1, le=500, description="Max rows to return"),
+    category: Optional[str] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    limit: int = Query(50, ge=1, le=500),
 ) -> list[ExpenseRecord]:
     conditions: list[str] = []
     params: list = []
-
     if category:
         conditions.append("LOWER(category) = LOWER(?)")
         params.append(category)
@@ -213,13 +276,11 @@ async def list_expenses(
     if date_to:
         conditions.append("date <= ?")
         params.append(date_to)
-
-    where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+    where = f"WHERE {chr(32).join(chr(65).join(conditions).split(chr(65)))}" if conditions else ""
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     sql = f"SELECT * FROM expenses {where} ORDER BY date DESC, id DESC LIMIT {limit}"
-
     try:
         rows = run_query(sql, tuple(params))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database query failed: {exc}") from exc
-
     return [ExpenseRecord(**row) for row in rows]
