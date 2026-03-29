@@ -9,7 +9,94 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="app-container theme-light">
+
+    <!-- ── Auth Overlay ─────────────────────────────────────────────────── -->
+    <div id="auth-view">
+        <div class="auth-bg-blur"></div>
+        <div class="auth-card">
+            <div class="auth-logo">
+                <i class="fa-solid fa-wallet gradient-text"></i>
+                <span>PennyWise AI</span>
+            </div>
+
+            <!-- Tabs -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login" data-tab="login">Sign In</button>
+                <button class="auth-tab" id="tab-register" data-tab="register">Register</button>
+                <div class="auth-tab-indicator"></div>
+            </div>
+
+            <!-- Error banner -->
+            <div class="auth-error" id="auth-error" style="display:none;"></div>
+
+            <!-- Login Form -->
+            <form class="auth-form" id="form-login">
+                <div class="auth-input-group">
+                    <label for="login-email">Email</label>
+                    <div class="auth-input-wrap">
+                        <i class="fa-regular fa-envelope"></i>
+                        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email" required>
+                    </div>
+                </div>
+                <div class="auth-input-group">
+                    <label for="login-password">Password</label>
+                    <div class="auth-input-wrap">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password" required>
+                        <button type="button" class="auth-eye-btn" data-target="login-password">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="auth-btn" id="login-submit-btn">
+                    <span>Sign In</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form class="auth-form" id="form-register" style="display:none;">
+                <div class="auth-input-group">
+                    <label for="reg-username">Username</label>
+                    <div class="auth-input-wrap">
+                        <i class="fa-regular fa-user"></i>
+                        <input type="text" id="reg-username" placeholder="Your name" autocomplete="username" required>
+                    </div>
+                </div>
+                <div class="auth-input-group">
+                    <label for="reg-email">Email</label>
+                    <div class="auth-input-wrap">
+                        <i class="fa-regular fa-envelope"></i>
+                        <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" required>
+                    </div>
+                </div>
+                <div class="auth-input-group">
+                    <label for="reg-password">Password</label>
+                    <div class="auth-input-wrap">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="reg-password" placeholder="Min. 6 characters" autocomplete="new-password" required>
+                        <button type="button" class="auth-eye-btn" data-target="reg-password">
+                            <i class="fa-regular fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="auth-input-group">
+                    <label for="reg-confirm">Confirm Password</label>
+                    <div class="auth-input-wrap">
+                        <i class="fa-solid fa-lock"></i>
+                        <input type="password" id="reg-confirm" placeholder="Repeat password" autocomplete="new-password" required>
+                    </div>
+                </div>
+                <button type="submit" class="auth-btn" id="register-submit-btn">
+                    <span>Create Account</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── App (hidden until login) ─────────────────────────────────────── -->
+    <div class="app-container theme-light" style="display:none;">
         <!-- Sidebar for Desktop -->
         <aside class="sidebar desktop-only" id="sidebar">
             <div class="sidebar-header">
@@ -25,8 +112,11 @@
             </div>
             <div class="sidebar-footer">
                 <div class="user-profile">
-                    <div class="avatar-sm">U</div>
-                    <span>User</span>
+                    <div class="avatar-sm" id="sidebar-avatar">U</div>
+                    <span id="sidebar-username">User</span>
+                    <button id="logout-btn" class="icon-btn logout-icon" title="Logout">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
                 </div>
             </div>
         </aside>

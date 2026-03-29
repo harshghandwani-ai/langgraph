@@ -1,4 +1,198 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── Auth Layer ────────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════════
+
+    const authView     = document.getElementById('auth-view');
+    const appContainer = document.querySelector('.app-container');
+    const authError    = document.getElementById('auth-error');
+    const tabIndicator = document.querySelector('.auth-tab-indicator');
+
+    // ── authFetch — injects Bearer token, auto-logouts on 401 ────────────────
+    function authFetch(url, options = {}) {
+        const token = localStorage.getItem('auth_token');
+        options.headers = {
+            ...(options.headers || {}),
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        };
+        return fetch(url, options).then(res => {
+            if (res.status === 401) { triggerLogout(); }
+            return res;
+        });
+    }
+
+    // ── Show / hide auth ──────────────────────────────────────────────────────
+    function showApp(user) {
+        authView.style.display = 'none';
+        appContainer.style.display = 'flex';
+        const avatar = document.getElementById('sidebar-avatar');
+        const uname  = document.getElementById('sidebar-username');
+        if (avatar) avatar.textContent = (user.username || 'U')[0].toUpperCase();
+        if (uname)  uname.textContent  = user.username || user.email;
+    }
+
+    function showAuth() {
+        authView.style.display = 'flex';
+        appContainer.style.display = 'none';
+        clearAuthError();
+    }
+
+    // ── Session detection on load ─────────────────────────────────────────────
+    const savedToken = localStorage.getItem('auth_token');
+    const savedUser  = (() => {
+        try { return JSON.parse(localStorage.getItem('auth_user') || 'null'); } catch { return null; }
+    })();
+
+    if (savedToken && savedUser) {
+        showApp(savedUser);
+    } else {
+        showAuth();
+    }
+
+    // ── Error helpers ─────────────────────────────────────────────────────────
+    function showAuthError(msg) {
+        authError.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> ${msg}`;
+        authError.style.display = 'flex';
+    }
+
+    function clearAuthError() {
+        authError.style.display = 'none';
+        authError.innerHTML = '';
+    }
+
+    // ── Tab switching ─────────────────────────────────────────────────────────
+    const formLogin    = document.getElementById('form-login');
+    const formRegister = document.getElementById('form-register');
+
+    document.querySelectorAll('.auth-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab;
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            clearAuthError();
+            if (target === 'login') {
+                formLogin.style.display    = 'flex';
+                formRegister.style.display = 'none';
+                tabIndicator.classList.remove('on-register');
+            } else {
+                formLogin.style.display    = 'none';
+                formRegister.style.display = 'flex';
+                tabIndicator.classList.add('on-register');
+            }
+        });
+    });
+
+    // ── Password eye toggle ───────────────────────────────────────────────────
+    document.querySelectorAll('.auth-eye-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.dataset.target);
+            if (!input) return;
+            const isHidden = input.type === 'password';
+            input.type = isHidden ? 'text' : 'password';
+            btn.querySelector('i').className = isHidden ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+        });
+    });
+
+    // ── Login ─────────────────────────────────────────────────────────────────
+    formLogin.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearAuthError();
+        const btn      = document.getElementById('login-submit-btn');
+        const email    = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value;
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing In\u2026';
+
+        try {
+            const res  = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showAuthError(data.detail || 'Login failed. Please try again.');
+            } else {
+                localStorage.setItem('auth_token', data.token);
+                localStorage.setItem('auth_user', JSON.stringify(data.user));
+                showApp(data.user);
+            }
+        } catch {
+            showAuthError('Connection error. Is the server running?');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Sign In</span><i class="fa-solid fa-arrow-right"></i>';
+        }
+    });
+
+    // ── Register ──────────────────────────────────────────────────────────────
+    formRegister.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        clearAuthError();
+        const btn      = document.getElementById('register-submit-btn');
+        const username = document.getElementById('reg-username').value.trim();
+        const email    = document.getElementById('reg-email').value.trim();
+        const password = document.getElementById('reg-password').value;
+        const confirm  = document.getElementById('reg-confirm').value;
+
+        if (password !== confirm) { showAuthError('Passwords do not match.'); return; }
+        if (password.length < 6)  { showAuthError('Password must be at least 6 characters.'); return; }
+
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Account\u2026';
+
+        try {
+            const res  = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, email, password }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                showAuthError(data.detail || 'Registration failed. Please try again.');
+            } else {
+                localStorage.setItem('auth_token', data.token);
+                localStorage.setItem('auth_user', JSON.stringify(data.user));
+                showApp(data.user);
+            }
+        } catch {
+            showAuthError('Connection error. Is the server running?');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Create Account</span><i class="fa-solid fa-arrow-right"></i>';
+        }
+    });
+
+    // ── Logout ────────────────────────────────────────────────────────────────
+    function triggerLogout() {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('auth_user');
+        // Reset chat to welcome state
+        const msgs    = document.getElementById('chat-messages');
+        const welcome = document.querySelector('.welcome-container');
+        if (msgs && welcome) {
+            msgs.innerHTML = '';
+            msgs.appendChild(welcome);
+            welcome.style.display = '';
+        }
+        // Reset nav to chat tab
+        document.querySelectorAll('.nav-item, .bottom-nav-item').forEach(n => {
+            n.classList.toggle('active', n.getAttribute('data-page') === 'page-chat');
+        });
+        document.querySelectorAll('.page-view').forEach(p => {
+            p.classList.toggle('active', p.id === 'page-chat');
+        });
+        document.getElementById('tab-login')?.click();
+        showAuth();
+    }
+
+    document.getElementById('logout-btn')?.addEventListener('click', triggerLogout);
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // ── End Auth Layer ────────────────────────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════════════════
+
     const chatForm = document.getElementById('chat-form');
     const messageInput = document.getElementById('message-input');
     const sendBtn = document.getElementById('send-btn');
@@ -54,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── Stats ──────────────────────────────────────────────────────────────
     async function loadStats() {
         try {
-            const response = await fetch('/api/expenses/stats');
+            const response = await authFetch('/api/expenses/stats');
             if (!response.ok) throw new Error('Failed to fetch stats');
             const data = await response.json();
 
@@ -92,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ── History ────────────────────────────────────────────────────────────
     async function loadHistory() {
         try {
-            const response = await fetch('/api/expenses?limit=50');
+            const response = await authFetch('/api/expenses?limit=50');
             if (!response.ok) throw new Error('Failed to fetch history');
             const data = await response.json();
             const transactionList = document.getElementById('history-transaction-list');
@@ -296,7 +490,7 @@ document.addEventListener('DOMContentLoaded', () => {
             confirmBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Saving...';
 
             try {
-                const res = await fetch('/api/expenses/confirm', {
+                const res = await authFetch('/api/expenses/confirm', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
@@ -377,7 +571,7 @@ document.addEventListener('DOMContentLoaded', () => {
             formData.append('file', file);
 
             try {
-                const response = await fetch('/api/expenses/upload', {
+                const response = await authFetch('/api/expenses/upload', {
                     method: 'POST',
                     body: formData,
                 });
@@ -415,7 +609,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const typingId = addTypingIndicator();
 
         try {
-            const response = await fetch('/api/chat', {
+            const response = await authFetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message }),
