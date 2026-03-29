@@ -17,3 +17,6 @@ pyyaml
 numpy<2
 opencv-python-headless
 pandas
+# Auth
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0

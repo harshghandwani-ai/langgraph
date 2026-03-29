@@ -46,6 +46,7 @@ TOOL_DEFINITION = {
 DB_SCHEMA = """
 Table: expenses
   id           INTEGER PRIMARY KEY
+  user_id      INTEGER   -- owner of this row (always filter by current user)
   amount       REAL      -- monetary amount
   category     TEXT      -- food, shopping, transport, entertainment, health, utilities, other
   date         TEXT      -- YYYY-MM-DD
@@ -54,18 +55,19 @@ Table: expenses
   created_at   TEXT      -- ISO-8601 UTC timestamp
 """
 
-SQL_SYSTEM_PROMPT = f"""You are a SQLite expert. Today is {TODAY}.
+SQL_SYSTEM_PROMPT_TEMPLATE = """You are a SQLite expert. Today is {today}.
 
 Given a natural-language question about expenses, generate a single valid SQLite SELECT statement.
 
 Database schema:
-{DB_SCHEMA}
+{schema}
 
 Rules:
 - Output ONLY the raw SQL. No markdown fences, no explanation.
 - Use only SELECT statements.
-- For date ranges use ISO-8601 strings (e.g. '{TODAY[:7]}-01' for start of current month).
-- For "this week" use date('{TODAY}','-6 days') as the lower bound.
+- ALWAYS include the condition: user_id = {user_id}
+- For date ranges use ISO-8601 strings (e.g. '{month}-01' for start of current month).
+- For "this week" use date('{today}','-6 days') as the lower bound.
 - Aliases make column names readable (e.g. SUM(amount) AS total).
 - LIMIT results to 50 rows unless the user asks for more.
 """
@@ -73,12 +75,18 @@ Rules:
 
 # ─── Pipeline steps ───────────────────────────────────────────────────────────
 
-def _generate_sql(query_text: str) -> str:
-    """Step 1 — ask the LLM to produce a SELECT statement."""
+def _generate_sql(query_text: str, user_id: int = 0) -> str:
+    """Step 1 — ask the LLM to produce a SELECT statement scoped to user_id."""
+    system_prompt = SQL_SYSTEM_PROMPT_TEMPLATE.format(
+        today=TODAY,
+        schema=DB_SCHEMA,
+        user_id=user_id,
+        month=TODAY[:7],
+    )
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=[
-            {"role": "system", "content": SQL_SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": query_text},
         ],
         temperature=0,
@@ -110,12 +118,12 @@ def _format_result(rows: list[dict]) -> str:
 
 # ─── Public dispatcher ────────────────────────────────────────────────────────
 
-def execute_read_expenses(query_text: str) -> str:
+def execute_read_expenses(query_text: str, user_id: int = 0) -> str:
     """
-    Full Text-to-SQL pipeline.
+    Full Text-to-SQL pipeline scoped to a specific user.
     Returns a JSON string that is sent back to the LLM as the tool result.
     """
-    sql = _generate_sql(query_text)
+    sql = _generate_sql(query_text, user_id=user_id)
     sql = _validate_sql(sql)
     rows = _execute_sql(sql)
     return _format_result(rows)

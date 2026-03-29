@@ -7,8 +7,9 @@ Accepts any natural-language message and routes it to the correct pipeline:
   - query -> Text-to-SQL pipeline -> returns AI answer
   - chat  -> direct LLM reply    -> returns AI answer
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from auth_utils import TokenData, get_current_user
 from intent_router import route
 from query_engine import execute_read_expenses, summarize_results
 from schemas import ChatRequest, ChatResponse, ExpensePreview
@@ -26,7 +27,10 @@ router = APIRouter()
         "query spending history, or answer general questions."
     ),
 )
-async def chat(body: ChatRequest) -> ChatResponse:
+async def chat(
+    body: ChatRequest,
+    current_user: TokenData = Depends(get_current_user),
+) -> ChatResponse:
     try:
         intent, payload = route(body.message)
     except Exception as exc:
@@ -59,7 +63,7 @@ async def chat(body: ChatRequest) -> ChatResponse:
     # ---- QUERY --------------------------------------------------------------
     if intent == "query":
         try:
-            tool_result = execute_read_expenses(payload)
+            tool_result = execute_read_expenses(payload, user_id=current_user.user_id)
             answer = summarize_results(body.message, tool_result)
             return ChatResponse(intent="query", answer=answer, expense=None)
         except Exception as exc:

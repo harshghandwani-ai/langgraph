@@ -46,14 +46,26 @@ def _sqlite_conn() -> sqlite3.Connection:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def init_db() -> None:
-    """Create the expenses table if it doesn't exist."""
+    """Create tables and run any pending migrations."""
     if _USE_POSTGRES:
         conn = _pg_conn()
         try:
             with conn.cursor() as cur:
+                # users table
+                cur.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id            SERIAL PRIMARY KEY,
+                        username      TEXT NOT NULL,
+                        email         TEXT NOT NULL UNIQUE,
+                        password_hash TEXT NOT NULL,
+                        created_at    TEXT NOT NULL
+                    )
+                """)
+                # expenses table
                 cur.execute("""
                     CREATE TABLE IF NOT EXISTS expenses (
                         id           SERIAL PRIMARY KEY,
+                        user_id      INTEGER NOT NULL DEFAULT 0,
                         amount       REAL        NOT NULL,
                         category     TEXT        NOT NULL,
                         date         TEXT        NOT NULL,
@@ -62,14 +74,28 @@ def init_db() -> None:
                         created_at   TEXT        NOT NULL
                     )
                 """)
+                # migration: add user_id if missing
+                cur.execute("""
+                    ALTER TABLE expenses ADD COLUMN IF NOT EXISTS user_id INTEGER NOT NULL DEFAULT 0
+                """)
             conn.commit()
         finally:
             conn.close()
     else:
         with _sqlite_conn() as conn:
             conn.execute("""
+                CREATE TABLE IF NOT EXISTS users (
+                    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username      TEXT NOT NULL,
+                    email         TEXT NOT NULL UNIQUE,
+                    password_hash TEXT NOT NULL,
+                    created_at    TEXT NOT NULL
+                )
+            """)
+            conn.execute("""
                 CREATE TABLE IF NOT EXISTS expenses (
                     id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id      INTEGER NOT NULL DEFAULT 0,
                     amount       REAL    NOT NULL,
                     category     TEXT    NOT NULL,
                     date         TEXT    NOT NULL,
@@ -78,10 +104,15 @@ def init_db() -> None:
                     created_at   TEXT    NOT NULL
                 )
             """)
+            # migration: add user_id column if it doesn't exist yet
+            existing = conn.execute("PRAGMA table_info(expenses)").fetchall()
+            col_names = [row[1] for row in existing]
+            if "user_id" not in col_names:
+                conn.execute("ALTER TABLE expenses ADD COLUMN user_id INTEGER NOT NULL DEFAULT 0")
             conn.commit()
 
 
-def insert_expense(expense: Expense) -> int:
+def insert_expense(expense: Expense, user_id: int = 0) -> int:
     """Insert an Expense record and return the new row id."""
     created_at = datetime.now(timezone.utc).isoformat()
 
@@ -91,11 +122,12 @@ def insert_expense(expense: Expense) -> int:
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    INSERT INTO expenses (amount, category, date, payment_mode, description, created_at)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    INSERT INTO expenses (user_id, amount, category, date, payment_mode, description, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """,
                     (
+                        user_id,
                         expense.amount,
                         expense.category,
                         expense.date,
@@ -113,10 +145,11 @@ def insert_expense(expense: Expense) -> int:
         with _sqlite_conn() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO expenses (amount, category, date, payment_mode, description, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO expenses (user_id, amount, category, date, payment_mode, description, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
+                    user_id,
                     expense.amount,
                     expense.category,
                     expense.date,
@@ -127,6 +160,53 @@ def insert_expense(expense: Expense) -> int:
             )
             conn.commit()
             return cursor.lastrowid
+
+
+# ── User helpers ──────────────────────────────────────────────────────────────
+
+def insert_user(username: str, email: str, password_hash: str) -> int:
+    """Insert a new user and return their new id. Raises on duplicate email."""
+    created_at = datetime.now(timezone.utc).isoformat()
+    if _USE_POSTGRES:
+        conn = _pg_conn()
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    INSERT INTO users (username, email, password_hash, created_at)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    (username, email, password_hash, created_at),
+                )
+                row_id = cur.fetchone()[0]
+            conn.commit()
+            return row_id
+        finally:
+            conn.close()
+    else:
+        with _sqlite_conn() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO users (username, email, password_hash, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (username, email, password_hash, created_at),
+            )
+            conn.commit()
+            return cursor.lastrowid
+
+
+def get_user_by_email(email: str) -> dict | None:
+    """Return the user row as a dict, or None if not found."""
+    rows = run_query("SELECT * FROM users WHERE email = ?", (email,))
+    return rows[0] if rows else None
+
+
+def get_user_by_id(user_id: int) -> dict | None:
+    """Return the user row as a dict, or None if not found."""
+    rows = run_query("SELECT * FROM users WHERE id = ?", (user_id,))
+    return rows[0] if rows else None
 
 
 def run_query(sql: str, params: tuple = ()) -> list[dict]:

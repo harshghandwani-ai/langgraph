@@ -18,9 +18,10 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, Response, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile, File
 from openai import OpenAI
 
+from auth_utils import TokenData, get_current_user
 from db import insert_expense, run_query
 from llm_extractor import extract_expense
 from models import Expense
@@ -75,16 +76,19 @@ def _summarise(question: str, rows: list[dict], sql: str) -> str:
     status_code=201,
     summary="Log a new expense",
 )
-async def log_expense(body: LogRequest) -> LogResponse:
+async def log_expense(
+    body: LogRequest,
+    current_user: TokenData = Depends(get_current_user),
+) -> LogResponse:
     try:
         expense = extract_expense(body.text)
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"LLM extraction failed: {exc}") from exc
     try:
-        row_id = insert_expense(expense)
+        row_id = insert_expense(expense, user_id=current_user.user_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database insert failed: {exc}") from exc
-    rows = run_query("SELECT * FROM expenses WHERE id = ?", (row_id,))
+    rows = run_query("SELECT * FROM expenses WHERE id = ? AND user_id = ?", (row_id, current_user.user_id))
     if not rows:
         raise HTTPException(status_code=500, detail="Expense saved but could not be retrieved.")
     return LogResponse(**rows[0])
@@ -116,13 +120,20 @@ async def query_expenses(body: QueryRequest) -> QueryResponse:
 # -- GET /api/expenses/stats -------------------------------------------
 
 @router.get("/stats", summary="Get expense statistics")
-async def get_stats() -> dict:
+async def get_stats(
+    current_user: TokenData = Depends(get_current_user),
+) -> dict:
     try:
-        total_rows = run_query("SELECT SUM(amount) as total FROM expenses")
+        total_rows = run_query(
+            "SELECT SUM(amount) as total FROM expenses WHERE user_id = ?",
+            (current_user.user_id,),
+        )
         total = total_rows[0]["total"] if total_rows and total_rows[0]["total"] else 0.0
         cat_rows = run_query(
             "SELECT LOWER(category) as category, SUM(amount) as total FROM expenses "
-            "GROUP BY LOWER(category) ORDER BY total DESC LIMIT 4"
+            "WHERE user_id = ? "
+            "GROUP BY LOWER(category) ORDER BY total DESC LIMIT 4",
+            (current_user.user_id,),
         )
         categories = [{"name": r["category"], "amount": r["total"]} for r in cat_rows]
         return {"total_expenses": total, "top_categories": categories}
@@ -133,9 +144,14 @@ async def get_stats() -> dict:
 # -- GET /api/expenses/export ------------------------------------------
 
 @router.get("/export", summary="Export expenses to CSV")
-async def export_csv():
+async def export_csv(
+    current_user: TokenData = Depends(get_current_user),
+):
     try:
-        rows = run_query("SELECT * FROM expenses ORDER BY date DESC, id DESC")
+        rows = run_query(
+            "SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC, id DESC",
+            (current_user.user_id,),
+        )
         output = io.StringIO()
         writer = csv.DictWriter(
             output,
@@ -166,7 +182,10 @@ ALLOWED_MIME_PREFIXES = ("image/jpeg", "image/png", "image/webp", "image/bmp", "
     status_code=200,
     summary="Upload a receipt image (preview only)",
 )
-async def upload_image(file: UploadFile = File(...)) -> ExpensePreview:
+async def upload_image(
+    file: UploadFile = File(...),
+    current_user: TokenData = Depends(get_current_user),
+) -> ExpensePreview:
     content_type = file.content_type or ""
     if not any(content_type.startswith(p) for p in ALLOWED_MIME_PREFIXES):
         raise HTTPException(
@@ -231,7 +250,10 @@ async def upload_image(file: UploadFile = File(...)) -> ExpensePreview:
         "Call this after /upload or after a log intent from /api/chat."
     ),
 )
-async def confirm_expense(body: ConfirmRequest) -> LogResponse:
+async def confirm_expense(
+    body: ConfirmRequest,
+    current_user: TokenData = Depends(get_current_user),
+) -> LogResponse:
     try:
         expense = Expense(
             amount=body.amount,
@@ -243,10 +265,10 @@ async def confirm_expense(body: ConfirmRequest) -> LogResponse:
     except Exception as exc:
         raise HTTPException(status_code=422, detail=f"Invalid expense data: {exc}") from exc
     try:
-        row_id = insert_expense(expense)
+        row_id = insert_expense(expense, user_id=current_user.user_id)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database insert failed: {exc}") from exc
-    rows = run_query("SELECT * FROM expenses WHERE id = ?", (row_id,))
+    rows = run_query("SELECT * FROM expenses WHERE id = ? AND user_id = ?", (row_id, current_user.user_id))
     if not rows:
         raise HTTPException(status_code=500, detail="Expense was saved but could not be retrieved.")
     return LogResponse(**rows[0])
@@ -260,13 +282,14 @@ async def confirm_expense(body: ConfirmRequest) -> LogResponse:
     summary="List expenses",
 )
 async def list_expenses(
+    current_user: TokenData = Depends(get_current_user),
     category: Optional[str] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
     limit: int = Query(50, ge=1, le=500),
 ) -> list[ExpenseRecord]:
-    conditions: list[str] = []
-    params: list = []
+    conditions: list[str] = ["user_id = ?"]
+    params: list = [current_user.user_id]
     if category:
         conditions.append("LOWER(category) = LOWER(?)")
         params.append(category)
@@ -276,8 +299,7 @@ async def list_expenses(
     if date_to:
         conditions.append("date <= ?")
         params.append(date_to)
-    where = f"WHERE {chr(32).join(chr(65).join(conditions).split(chr(65)))}" if conditions else ""
-    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    where = "WHERE " + " AND ".join(conditions)
     sql = f"SELECT * FROM expenses {where} ORDER BY date DESC, id DESC LIMIT {limit}"
     try:
         rows = run_query(sql, tuple(params))
