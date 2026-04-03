@@ -117,6 +117,7 @@ class StatsResponse(BaseModel):
     total_expenses: float
     total_income: float
     top_categories: list[BudgetStats]
+    total_budget: Optional[float] = None
 
 
 class BudgetUpsertRequest(BaseModel):

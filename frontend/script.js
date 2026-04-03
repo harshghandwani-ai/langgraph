@@ -288,6 +288,28 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('stats-expenses-val').textContent = `\u20b9${data.total_expenses.toFixed(2)}`;
             document.getElementById('stats-income-val').textContent = `\u20b9${data.total_income.toFixed(2)}`;
 
+            // Overall Budget Progress
+            const overallBudgetContainer = document.getElementById('stats-overall-budget-container');
+            if (data.total_budget) {
+                const percentage = Math.min(100, Math.round((data.total_expenses / data.total_budget) * 100));
+                let statusClass = '';
+                if (percentage >= 90) statusClass = 'danger';
+                else if (percentage >= 70) statusClass = 'warning';
+                
+                overallBudgetContainer.innerHTML = `
+                    <div class="overall-budget-header">
+                        <span>Total Monthly Budget</span>
+                        <span>\u20b9${data.total_expenses.toFixed(0)} / \u20b9${data.total_budget.toFixed(0)}</span>
+                    </div>
+                    <div class="overall-progress-bg">
+                        <div class="overall-progress-bar ${statusClass}" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+                overallBudgetContainer.style.display = 'block';
+            } else {
+                overallBudgetContainer.style.display = 'none';
+            }
+
             const categoriesList = document.getElementById('stats-categories-list');
             categoriesList.innerHTML = '';
             if (data.top_categories.length === 0) {

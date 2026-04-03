@@ -712,6 +712,47 @@ textarea::placeholder {
     margin-top: 4px;
 }
 
+#stats-overall-budget-container {
+    margin-bottom: 24px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.overall-budget-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    margin-bottom: 8px;
+    font-weight: 600;
+    opacity: 0.95;
+    color: white;
+}
+
+.overall-progress-bg {
+    height: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.overall-progress-bar {
+    height: 100%;
+    background-color: white;
+    border-radius: 4px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.overall-progress-bar.warning {
+    background-color: #f1c40f !important;
+}
+
+.overall-progress-bar.danger {
+    background-color: #e74c3c !important;
+}
+
 .balance-stats {
     display: flex;
     gap: 16px;

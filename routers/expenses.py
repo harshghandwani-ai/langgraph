@@ -161,7 +161,8 @@ async def get_stats(
         return {
             "total_expenses": total_expenses, 
             "total_income": total_income,
-            "top_categories": categories
+            "top_categories": categories,
+            "total_budget": budgets.get("total")
         }
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Database query failed: {exc}") from exc
@@ -182,6 +183,7 @@ async def export_csv(
         writer = csv.DictWriter(
             output,
             fieldnames=["id","amount","type","category","date","payment_mode","description","created_at"],
+            extrasaction="ignore",
         )
         writer.writeheader()
         writer.writerows(rows)
