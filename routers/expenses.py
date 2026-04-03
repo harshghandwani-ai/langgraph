@@ -170,7 +170,7 @@ async def export_csv(
         output = io.StringIO()
         writer = csv.DictWriter(
             output,
-            fieldnames=["id","amount","category","date","payment_mode","description","created_at"],
+            fieldnames=["id","amount","type","category","date","payment_mode","description","created_at"],
         )
         writer.writeheader()
         writer.writerows(rows)

@@ -219,15 +219,29 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ── Theme Toggle ───────────────────────────────────────────────────────
+    const applyTheme = (theme) => {
+        const body = document.querySelector('.app-container');
+        const isDark = theme === 'dark';
+        body.classList.toggle('theme-dark', isDark);
+        body.classList.toggle('theme-light', !isDark);
+        const icon = isDark ? '<i class="fa-solid fa-sun"></i>' : '<i class="fa-solid fa-moon"></i>';
+        const desktopToggle = document.getElementById('theme-toggle-desktop');
+        const mobileToggle = document.getElementById('theme-toggle-mobile');
+        if (desktopToggle) desktopToggle.innerHTML = icon;
+        if (mobileToggle) mobileToggle.innerHTML = icon;
+        localStorage.setItem('theme', theme);
+    };
+
     const toggleTheme = () => {
         const body = document.querySelector('.app-container');
-        const isDark = body.classList.contains('theme-dark');
-        body.classList.toggle('theme-dark', !isDark);
-        body.classList.toggle('theme-light', isDark);
-        const icon = isDark ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
-        document.getElementById('theme-toggle-desktop').innerHTML = icon;
-        document.getElementById('theme-toggle-mobile').innerHTML = icon;
+        const nextTheme = body.classList.contains('theme-dark') ? 'light' : 'dark';
+        applyTheme(nextTheme);
     };
+
+    // Initialize theme from localStorage
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    applyTheme(savedTheme);
+
     document.getElementById('theme-toggle-desktop')?.addEventListener('click', toggleTheme);
     document.getElementById('theme-toggle-mobile')?.addEventListener('click', toggleTheme);
 
@@ -324,8 +338,36 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Export CSV ─────────────────────────────────────────────────────────
-    document.getElementById('btn-export-csv')?.addEventListener('click', () => {
-        window.location.href = '/api/expenses/export';
+    document.getElementById('btn-export-csv')?.addEventListener('click', async () => {
+        try {
+            const btn = document.getElementById('btn-export-csv');
+            const originalContent = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Exporting...';
+
+            const res = await authFetch('/api/expenses/export');
+            if (!res.ok) throw new Error('Export failed');
+
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = `expenses_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+        } catch (error) {
+            console.error('Export error:', error);
+            alert('Failed to export CSV. Please try again.');
+            const btn = document.getElementById('btn-export-csv');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fa-solid fa-file-csv"></i> Export CSV';
+        }
     });
 
     // ── New Chat ───────────────────────────────────────────────────────────
@@ -676,11 +718,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             isRecordingVoice = true;
             micBtn.classList.add('recording');
-            
+
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             voiceSocket = new WebSocket(`${protocol}//${window.location.host}/api/voice/transcribe`);
             voiceSocket.binaryType = 'arraybuffer';
-            
+
             voiceSocket.onopen = () => setupVoiceProcessing(stream);
 
             voiceSocket.onmessage = (event) => {
@@ -688,7 +730,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (data.channel === 'transcript') {
                     handleVoiceTranscript(data.text);
                 } else if (data.channel === 'utterance_end') {
-                    stopVoiceRecording(true); 
+                    stopVoiceRecording(true);
                 } else if (data.channel === 'error') {
                     console.error('STT Error:', data.message);
                     stopVoiceRecording();
