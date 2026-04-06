@@ -137,6 +137,7 @@ def execute_read_expenses(query_text: str, history: list[dict] = None, user_id: 
     Returns a JSON string that is sent back to the LLM as the tool result.
     """
     sql = _generate_sql(query_text, history=history, user_id=user_id)
+    print(f"\n[TEMPORARY SQL LOG] Generated SQL for query '{query_text}':\n{sql}\n")
     sql = _validate_sql(sql)
     rows = _execute_sql(sql)
     return _format_result(rows)
