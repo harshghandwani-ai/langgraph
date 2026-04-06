@@ -51,110 +51,68 @@ async def chat(
         insert_chat_message(current_user.user_id, "user", body.message)
         
         try:
-            # 2. Intent Classification
-            t_intent = time.time()
-            intent, payload = route(body.message, history=history)
-            logger.info(
-                "[LATENCY] request_id=%s stage=intent_classification intent=%s duration_ms=%d",
-                request_id, intent, round((time.time() - t_intent) * 1000)
-            )
+            # 2. Agentic Graph Execution
+            t_invoke = time.time()
+            from graph.workflow import create_graph
+            graph_app = create_graph()
             
-            # Send the detected intent first
-            yield f"data: {json.dumps({'type': 'intent', 'value': intent})}\n\n"
-            await asyncio.sleep(0.01)
+            # Run the agentic loop
+            state = graph_app.invoke({
+                "input": body.message,
+                "user_id": current_user.user_id,
+                "chat_history": history,
+                "past_steps": [],
+                "plan": [],
+                "error_count": 0
+            }, config={"configurable": {"thread_id": str(current_user.user_id)}})
 
-            # ---- LOG --------------------------------------------------------
-            if intent == "log":
-                t_extract = time.time()
-                preview = {
-                    "amount": payload["amount"],
-                    "category": payload["category"],
-                    "date": payload["date"],
-                    "payment_mode": payload["payment_mode"],
-                    "description": payload["description"],
-                    "type": payload.get("type", "expense"),
-                    "source": "text"
-                }
-                logger.info(
-                    "[LATENCY] request_id=%s stage=log_preview duration_ms=%d",
-                    request_id, round((time.time() - t_extract) * 1000)
-                )
-                answer = "Here's what I extracted. Please confirm or edit before saving."
-                yield f"data: {json.dumps({'type': 'log', 'answer': answer, 'expense': preview})}\n\n"
+            logger.info(
+                "[LATENCY] request_id=%s stage=graph_execution duration_ms=%d",
+                request_id, round((time.time() - t_invoke) * 1000)
+            )
 
-            # ---- QUERY ------------------------------------------------------
-            elif intent == "query":
-                t_query = time.time()
-                tool_result = execute_read_expenses(payload, history=history, user_id=current_user.user_id)
-                
-                # Start streaming the response
-                completion = summarize_results(body.message, tool_result, history=history)
-                full_content = ""
-                for chunk in completion:
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        full_content += content
-                        yield f"data: {json.dumps({'type': 'chunk', 'value': content})}\n\n"
-                        await asyncio.sleep(0.01)
+            # Analyze state to determine frontend event type
+            past_steps = state.get("past_steps", [])
+            messages = state.get("messages", [])
+            
+            final_answer = state.get("final_response")
+            if not final_answer and messages:
+                final_answer = messages[-1].content
+            if not final_answer:
+                final_answer = "Okay, understood."
 
-                logger.info(
-                    "[LATENCY] request_id=%s stage=query_execution duration_ms=%d",
-                    request_id, round((time.time() - t_query) * 1000)
-                )
-                insert_chat_message(current_user.user_id, "assistant", full_content)
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+            is_log = False
+            is_budget = False
+            expense_preview = None
 
-            # ---- BUDGET -----------------------------------------------------
-            elif intent == "budget":
-                amount = payload.get("amount")
-                category = payload.get("category", "total")
-                period = payload.get("period", "monthly")
-                
-                if amount:
-                    upsert_budget(current_user.user_id, category, amount, period)
-                    answer = f"Done! I've set your {period} budget for **{category}** to **\u20b9{amount:,.2f}**."
-                    insert_chat_message(current_user.user_id, "assistant", answer)
-                    yield f"data: {json.dumps({'type': 'budget', 'answer': answer})}\n\n"
-                else:
-                    yield f"data: {json.dumps({'type': 'error', 'message': 'Budget amount missing'})}\n\n"
+            for step_name, res_str in past_steps:
+                try:
+                    res_json = json.loads(res_str)
+                    if res_json.get("status") == "preview_ready":
+                        is_log = True
+                        expense_preview = res_json.get("expense")
+                    elif "budget" in str(res_json).lower():
+                        is_budget = True
+                except:
+                    pass
 
-            # ---- CHAT -------------------------------------------------------
+            # Return the correct visual widget
+            if is_log and expense_preview:
+                yield f"data: {json.dumps({'type': 'intent', 'value': 'log'})}\n\n"
+                yield f"data: {json.dumps({'type': 'log', 'answer': final_answer, 'expense': expense_preview})}\n\n"
+            elif is_budget:
+                yield f"data: {json.dumps({'type': 'intent', 'value': 'budget'})}\n\n"
+                yield f"data: {json.dumps({'type': 'budget', 'answer': final_answer})}\n\n"
             else:
-                # Start streaming reply
-                messages = [{"role": "system", "content": ROUTER_SYSTEM_PROMPT}]
-                if history: messages.extend(history)
-                messages.append({"role": "user", "content": body.message})
-                
-                full_content = ""
-                first_token = True
-                t_stream_start = time.time()
-                completion = client.chat.completions.create(
-                    model=OPENAI_MODEL,
-                    messages=messages,
-                    stream=True,
-                    temperature=0.7
-                )
-                
-                for chunk in completion:
-                    if chunk.choices[0].delta.content:
-                        content = chunk.choices[0].delta.content
-                        if first_token:
-                            logger.info(
-                                "[LATENCY] request_id=%s stage=chat_ttft duration_ms=%d",
-                                request_id, round((time.time() - t_stream_start) * 1000)
-                            )
-                            first_token = False
-                        full_content += content
-                        yield f"data: {json.dumps({'type': 'chunk', 'value': content})}\n\n"
-                        await asyncio.sleep(0.01)
-                
-                # Save assistant message
-                insert_chat_message(current_user.user_id, "assistant", full_content)
-                logger.info(
-                    "[LATENCY] request_id=%s stage=chat_stream_complete duration_ms=%d",
-                    request_id, round((time.time() - t_stream_start) * 1000)
-                )
-                yield f"data: {json.dumps({'type': 'done'})}\n\n"
+                yield f"data: {json.dumps({'type': 'intent', 'value': 'chat'})}\n\n"
+                # Chunk out the text manually
+                words = final_answer.split()
+                for word in words:
+                    yield f"data: {json.dumps({'type': 'chunk', 'value': word + ' '})}\n\n"
+                    await asyncio.sleep(0.01)
+
+            insert_chat_message(current_user.user_id, "assistant", final_answer)
+            yield f"data: {json.dumps({'type': 'done'})}\n\n"
 
         except Exception as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
