@@ -2,13 +2,13 @@ from typing import Dict, Any, List
 from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 from langchain_openai import ChatOpenAI
 from graph.state import AgentState
-from graph.tools import log_expense_tool, set_budget_tool, read_expenses_tool
+from graph.tools import log_expense_tool, set_budget_tool, read_expenses_tool, read_budgets_tool
 from config import OPENAI_API_KEY, OPENAI_MODEL
 import json
 from db import upsert_budget
 from query_engine import execute_read_expenses
 
-tools = [log_expense_tool, set_budget_tool, read_expenses_tool]
+tools = [log_expense_tool, set_budget_tool, read_expenses_tool, read_budgets_tool]
 executor_llm = ChatOpenAI(
     api_key=OPENAI_API_KEY, 
     model=OPENAI_MODEL, 
@@ -29,7 +29,9 @@ def executor_node(state: AgentState) -> Dict[str, Any]:
     current_step = plan[len(past_steps)]
     print(f"[EXECUTOR] Executing Step: {current_step}")
     
-    messages = [SystemMessage(content=f"You are the execution agent. Your task is to execute the current step: '{current_step}'.\nYou must use one of your tools if necessary. If not, just respond directly.")]
+    from datetime import date
+    
+    messages = [SystemMessage(content=f"You are the execution agent. Today is {date.today().isoformat()}. Your task is to execute the current step: '{current_step}'.\nYou must use one of your tools if necessary. If not, just respond directly.")]
     if history:
         messages.extend(history)
     messages.append(HumanMessage(content=input_text))
@@ -66,6 +68,16 @@ def executor_node(state: AgentState) -> Dict[str, Any]:
                 query = tool_args.get("query")
                 db_res = execute_read_expenses(query, history=history, user_id=user_id)
                 res = json.dumps({"status": "success", "db_result": db_res})
+                tool_results.append((current_step, res))
+                response_texts.append(res)
+                
+            elif tool_name == "read_budgets_tool":
+                from db import get_budgets
+                category = tool_args.get("category")
+                budgets = get_budgets(user_id)
+                if category and category.lower() != "total":
+                    budgets = [b for b in budgets if b["category"].lower() == category.lower()]
+                res = json.dumps({"status": "success", "db_result": json.dumps({"budgets": budgets})})
                 tool_results.append((current_step, res))
                 response_texts.append(res)
                 

@@ -83,6 +83,8 @@ async def chat(
 
             is_log = False
             is_budget = False
+            is_query = False
+            query_db_res = None
             expense_preview = None
 
             for step_name, res_str in past_steps:
@@ -91,6 +93,9 @@ async def chat(
                     if res_json.get("status") == "preview_ready":
                         is_log = True
                         expense_preview = res_json.get("expense")
+                    elif "db_result" in res_json:
+                        is_query = True
+                        query_db_res = res_json.get("db_result")
                     elif "budget" in str(res_json).lower():
                         is_budget = True
                 except:
@@ -100,16 +105,30 @@ async def chat(
             if is_log and expense_preview:
                 yield f"data: {json.dumps({'type': 'intent', 'value': 'log'})}\n\n"
                 yield f"data: {json.dumps({'type': 'log', 'answer': final_answer, 'expense': expense_preview})}\n\n"
+            elif is_query:
+                from query_engine import summarize_results
+                yield f"data: {json.dumps({'type': 'intent', 'value': 'query'})}\n\n"
+                completion = summarize_results(body.message, query_db_res, history=history)
+                full_content = ""
+                for chunk in completion:
+                    if chunk.choices[0].delta.content:
+                        content = chunk.choices[0].delta.content
+                        full_content += content
+                        yield f"data: {json.dumps({'type': 'chunk', 'value': content})}\n\n"
+                        await asyncio.sleep(0.01)
+                final_answer = full_content
             elif is_budget:
                 yield f"data: {json.dumps({'type': 'intent', 'value': 'budget'})}\n\n"
                 yield f"data: {json.dumps({'type': 'budget', 'answer': final_answer})}\n\n"
             else:
                 yield f"data: {json.dumps({'type': 'intent', 'value': 'chat'})}\n\n"
-                # Chunk out the text manually
-                words = final_answer.split()
-                for word in words:
-                    yield f"data: {json.dumps({'type': 'chunk', 'value': word + ' '})}\n\n"
-                    await asyncio.sleep(0.01)
+                # Chunk out the text manually without stripping newlines
+                import re
+                tokens = re.split(r'( )', final_answer)
+                for token in tokens:
+                    if token:
+                        yield f"data: {json.dumps({'type': 'chunk', 'value': token})}\n\n"
+                        await asyncio.sleep(0.01)
 
             insert_chat_message(current_user.user_id, "assistant", final_answer)
             yield f"data: {json.dumps({'type': 'done'})}\n\n"

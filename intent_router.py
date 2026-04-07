@@ -20,7 +20,7 @@ TODAY = date.today().isoformat()
 
 class LogExpenseArgs(BaseModel):
     amount: float = Field(description="The monetary amount (float).")
-    category: Literal["food", "shopping", "transport", "entertainment", "health", "utilities", "salary", "gift", "investment", "other"] = Field(description="The category of the transaction.")
+    category: Literal["food", "shopping", "commute", "travel", "entertainment", "health", "utilities", "salary", "gift", "investment", "other"] = Field(description="The category of the transaction.")
     date: str = Field(description="The date in YYYY-MM-DD format. Use today if not specified.")
     payment_mode: str = Field(description="The payment mode: cash, UPI, bank transfer, etc.")
     description: str = Field(description="A brief noun phrase describing the transaction.")
@@ -31,7 +31,7 @@ class ReadExpensesArgs(BaseModel):
 
 class SetBudgetArgs(BaseModel):
     amount: float = Field(description="The budget amount (float).")
-    category: Literal["food", "shopping", "transport", "entertainment", "health", "utilities", "salary", "gift", "investment", "other", "total"] = Field(description="The category. Use 'total' for an overall budget.")
+    category: Literal["food", "shopping", "commute", "travel", "entertainment", "health", "utilities", "salary", "gift", "investment", "other", "total"] = Field(description="The category. Use 'total' for an overall budget.")
     period: Literal["monthly", "weekly"] = Field(description="The budget period. Default is 'monthly'.")
 
 class RouteDecision(BaseModel):

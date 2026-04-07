@@ -17,9 +17,9 @@ SYSTEM_PROMPT = f"""You are a personal finance extraction assistant. Today is {T
 Extract the transaction details into a JSON object with strictly these keys:
 - amount (float)
 - type (string): 'expense' or 'income'
-- category (string): choose from [shopping, transport, entertainment, health, utilities, food, salary, gift, investment, other]
+- category (string): choose from [shopping, commute, travel, entertainment, health, utilities, food, salary, gift, investment, other]
 - date (string): YYYY-MM-DD (default to {TODAY})
-- payment_mode (string): e.g. cash, UPI, card (default 'cash')
+- payment_mode (string): e.g. cash, UPI, card (default 'UPI')
 - description (string): brief noun phrase describing the item/merchant
 
 Respond ONLY with valid JSON. No explanations or markdown.
@@ -53,9 +53,9 @@ RECEIPT_SYSTEM_PROMPT = f"""You are an OCR receipt parsing assistant. Today is {
 Extract transaction details from the raw OCR text into a JSON object with strictly these keys:
 - amount (float): total spent. Look for "Total" or the largest number near the bottom.
 - type (string): ALWAYS 'expense'
-- category (string): choose from [food, shopping, transport, entertainment, health, utilities, other]
+- category (string): choose from [food, shopping, commute, travel, entertainment, health, utilities, other]
 - date (string): YYYY-MM-DD (default to {TODAY})
-- payment_mode (string): e.g. cash, UPI, card (default 'cash')
+- payment_mode (string): e.g. cash, UPI, card (default 'UPI')
 - description (string): merchant name or brief summary
 
 If unreadable, return amount 0.0 and description "Failed to parse receipt".
