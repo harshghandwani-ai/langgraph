@@ -21,6 +21,7 @@ pandas
 # Agentic Graph
 langchain-core>=0.2.0
 langgraph>=0.1.30
+langchain-openai>=0.1.0
 
 # Auth
 passlib[bcrypt]>=1.7.4
