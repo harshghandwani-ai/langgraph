@@ -5,11 +5,20 @@ import os
 import asyncio
 import logging
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from deepgram import (
-    DeepgramClient,
-    LiveOptions,
-    LiveTranscriptionEvents,
-)
+try:
+    from deepgram import (
+        DeepgramClient,
+        LiveOptions,
+        LiveTranscriptionEvents,
+    )
+except ImportError as e:
+    # This usually happens if deepgram-sdk v5+ is installed (code is v3 compatible)
+    print(f"\n[ERROR] Deepgram Import Failed: {e}")
+    print("[ERROR] Please ensure deepgram-sdk==3.8.0 is installed.\n")
+    raise ImportError(
+        "Could not import Deepgram classes. This is likely due to a version mismatch. "
+        "The current code requires deepgram-sdk v3.x (pinned to 3.8.0)."
+    ) from e
 from dotenv import load_dotenv
 
 load_dotenv()
