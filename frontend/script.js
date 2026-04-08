@@ -8,6 +8,16 @@ document.addEventListener('DOMContentLoaded', () => {
     const authError = document.getElementById('auth-error');
     const tabIndicator = document.querySelector('.auth-tab-indicator');
 
+    // ── Platform Detection & API Base URL ────────────────────────────────────
+    const GET_BASE_URL = () => {
+        // When running as a native app (Capacitor), we need a full URL to the backend.
+        // If BASE_URL is empty, it falls back to relative paths (works in browser).
+        const isMobile = window.location.protocol === 'capacitor:' || window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !window.location.port;
+        const REMOTE_URL = 'https://harshghandwani-ai-agentic-expense-manager.hf.space'; // USER: Set your public server URL here for the APK to work
+        return isMobile ? REMOTE_URL : '';
+    };
+    const BASE_URL = GET_BASE_URL();
+
     // ── authFetch — injects Bearer token, auto-logouts on 401 ────────────────
     function authFetch(url, options = {}) {
         const token = localStorage.getItem('auth_token');
@@ -15,7 +25,8 @@ document.addEventListener('DOMContentLoaded', () => {
             ...(options.headers || {}),
             ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         };
-        return fetch(url, options).then(res => {
+        const fullUrl = url.startsWith('http') ? url : BASE_URL + url;
+        return fetch(fullUrl, options).then(res => {
             if (res.status === 401) { triggerLogout(); }
             return res;
         });
@@ -105,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing In\u2026';
 
         try {
-            const res = await fetch('/api/auth/login', {
+            const res = await fetch(BASE_URL + '/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password }),
@@ -143,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Account\u2026';
 
         try {
-            const res = await fetch('/api/auth/register', {
+            const res = await fetch(BASE_URL + '/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ username, email, password }),

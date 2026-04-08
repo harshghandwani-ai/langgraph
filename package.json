@@ -1,0 +1,20 @@
+{
+  "name": "agentic-expense-manager",
+  "version": "1.0.0",
+  "description": "Agentic Expense Manager Mobile App",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No web build process needed for static files.'",
+    "cap-copy": "npx cap copy",
+    "cap-sync": "npx cap sync",
+    "cap-open-android": "npx cap open android"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0"
+  }
+}

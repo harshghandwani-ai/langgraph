@@ -25,7 +25,7 @@ Valid Categories:
     "food", "shopping", "commute", "travel", "entertainment", "health", "utilities", "salary", "gift", "investment", "other"
 
 Available tools:
-1. prepare_log_expense: Extract transaction details to log an expense or income.
+1. log_expense_tool: Extract transaction details to log an expense or income.
 2. read_expenses_tool: Query the SQLite database for past transactions.
 3. set_budget_tool: Set or update a budget.
 4. read_budgets_tool: Queries the database to list the user's current budgets.

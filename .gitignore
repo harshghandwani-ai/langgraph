@@ -47,4 +47,19 @@ latency_results.json
 .agents/
 .agent/
 _agents/
-_agent/
+# ── Web/Mobile Build Artifacts ────────────────────────────────────────────────
+node_modules/
+package-lock.json
+capacitor.config.json.bak
+dist/
+build/
+
+# ── Android Specifics ─────────────────────────────────────────────────────────
+# By default, Capacitor projects keep the 'android' folder in Git.
+# But we should ignore the local/build artifacts within it.
+android/app/build/
+android/.gradle/
+android/local.properties
+android/captures/
+*.apk
+*.aab

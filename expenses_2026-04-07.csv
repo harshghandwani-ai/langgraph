@@ -1,0 +1,24 @@
+id,amount,type,category,date,payment_mode,description,created_at
+32,850.0,expense,other,2026-04-05,UPI,Payment to Jyoti Verma,2026-04-07T06:19:00.694619+00:00
+31,1000.0,expense,health,2026-04-05,cash,Unspecified expense,2026-04-07T06:18:09.837997+00:00
+30,500.0,expense,shopping,2026-04-05,cash,Shoes,2026-04-07T06:16:06.396713+00:00
+29,500.0,expense,shopping,2026-04-05,cash,shoes,2026-04-07T06:14:57.554651+00:00
+26,65.0,expense,transport,2026-04-05,cash,Train ticket from New Delhi to Kanpur Central,2026-04-06T07:43:26.004636+00:00
+25,5000.0,expense,shopping,2026-04-04,cash,shoes,2026-04-04T17:51:35.214623+00:00
+24,200.0,expense,shopping,2026-04-04,cash,Shampoo water,2026-04-04T17:38:18.214465+00:00
+23,850.0,expense,other,2026-04-04,UPI,Payment to Jyoti Verma,2026-04-04T17:35:30.707322+00:00
+22,850.0,expense,other,2026-04-04,UPI,Payment to Jyoti Verma,2026-04-04T13:07:11.630709+00:00
+19,546.0,expense,other,2026-04-04,UPI,payment to cheq4,2026-04-04T09:20:58.620998+00:00
+18,850.0,expense,other,2026-04-04,UPI,Payment to Jyoti Verma,2026-04-04T09:20:31.190145+00:00
+16,90000.0,income,salary,2026-04-03,bank transfer,Salary credited,2026-04-03T08:53:57.608605+00:00
+15,50000.0,income,salary,2026-04-03,bank transfer,Salary credited,2026-04-03T08:52:56.099881+00:00
+14,500.0,expense,food,2026-04-03,cash,Received cash,2026-04-03T07:51:51.148064+00:00
+13,90000.0,expense,food,2026-04-02,bank transfer,Salary received,2026-04-03T07:51:27.646677+00:00
+12,850.0,expense,other,2026-04-02,UPI,payment to Jyoti Verma,2026-04-02T17:45:46.918858+00:00
+34,170.0,expense,food,2026-04-01,UPI,SURE MAA-Pure Veg Shawarma,2026-04-07T16:02:31.454678+00:00
+33,170.0,expense,food,2026-04-01,UPI,SURE MAA-Pure Veg Shawarma,2026-04-07T15:40:55.296403+00:00
+10,500.0,expense,shopping,2026-04-01,cash,shoes,2026-04-01T11:20:31.098998+00:00
+9,600.0,expense,transport,2026-03-29,cash,irctc,2026-03-30T03:08:02.825562+00:00
+11,546.0,expense,other,2026-03-28,UPI,payment to cheq4,2026-04-02T17:41:42.574162+00:00
+8,546.0,expense,other,2026-03-28,UPI,payment to cheq4,2026-03-29T16:03:08.938963+00:00
+17,850.0,expense,other,2026-03-24,UPI,Payment to Jyoti Verma,2026-04-03T17:51:31.409254+00:00
