@@ -51,10 +51,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── CORS — allow all origins for local dev; restrict in production ────────────
+# ── CORS — allow mobile origins and HF subdomains ─────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost",
+        "https://localhost",
+        "capacitor://localhost",
+        "https://harshghandwani-ai-agentic-expense-manager.hf.space"
+    ],
+    allow_origin_regex="capacitor:\/\/.*|https?:\/\/.*\.hf\.space|http:\/\/localhost:.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

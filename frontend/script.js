@@ -129,7 +129,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('auth_user', JSON.stringify(data.user));
                 showApp(data.user);
             }
-        } catch {
+        } catch (err) {
+            console.error('Login error details:', err);
             showAuthError('Connection error. Is the server running?');
         } finally {
             btn.disabled = false;
@@ -167,7 +168,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 localStorage.setItem('auth_user', JSON.stringify(data.user));
                 showApp(data.user);
             }
-        } catch {
+        } catch (err) {
+            console.error('Registration error details:', err);
             showAuthError('Connection error. Is the server running?');
         } finally {
             btn.disabled = false;
@@ -719,8 +721,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (error) {
                 removeElement(typingId);
+                console.error('Image Upload error details:', error);
                 appendMessage('system', '\uD83D\uDD0C Connection error during upload. Please ensure the server is running.');
-                console.error('Upload error:', error);
             }
 
             imageUpload.value = '';
