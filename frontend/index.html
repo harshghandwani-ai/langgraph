@@ -255,6 +255,18 @@
         </div>
     </template>
 
+    <!-- ── Debug Console (Hidden by default) ──────────────────────────────── -->
+    <div id="debug-log-overlay" style="display:none;">
+        <div class="debug-header">
+            <span>🔍 Debug Console</span>
+            <div class="debug-controls">
+                <button id="debug-clear">Clear</button>
+                <button id="debug-close">Close</button>
+            </div>
+        </div>
+        <div id="debug-log-content"></div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="script.js"></script>
 </body>

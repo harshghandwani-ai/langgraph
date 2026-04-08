@@ -1,4 +1,45 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // ── Debug Logger ──────────────────────────────────────────────────────────
+    const debugOverlay = document.getElementById('debug-log-overlay');
+    const debugContent = document.getElementById('debug-log-content');
+    const debugClear = document.getElementById('debug-clear');
+    const debugClose = document.getElementById('debug-close');
+
+    const logToScreen = (type, args) => {
+        const line = document.createElement('div');
+        line.className = `debug-line ${type}`;
+        line.textContent = `[${new Date().toLocaleTimeString()}] ${args.map(a => typeof a === 'object' ? JSON.stringify(a) : a).join(' ')}`;
+        debugContent.appendChild(line);
+        debugContent.scrollTop = debugContent.scrollHeight;
+    };
+
+    // Hijack console
+    const _log = console.log;
+    const _error = console.error;
+    const _warn = console.warn;
+
+    console.log = (...args) => { _log(...args); logToScreen('info', args); };
+    console.error = (...args) => { _error(...args); logToScreen('error', args); };
+    console.warn = (...args) => { _warn(...args); logToScreen('warn', args); };
+
+    debugClear.onclick = () => { debugContent.innerHTML = ''; };
+    debugClose.onclick = () => { debugOverlay.style.display = 'none'; };
+
+    // Secret Toggle: Tap Logo 5 times
+    let logoTaps = 0;
+    document.querySelector('.auth-logo')?.addEventListener('click', () => {
+        logoTaps++;
+        if (logoTaps >= 5) {
+            debugOverlay.style.display = 'flex';
+            console.log('--- DEBUG CONSOLE ENABLED ---');
+            console.log('Platform:', window.navigator.userAgent);
+            console.log('Protocol:', window.location.protocol);
+            console.log('BASE_URL:', BASE_URL);
+            logoTaps = 0;
+        }
+        setTimeout(() => { logoTaps = Math.max(0, logoTaps - 1); }, 3000);
+    });
+
     // ══════════════════════════════════════════════════════════════════════════
     // ── Auth Layer ────────────────────────────────────────────────────────────
     // ══════════════════════════════════════════════════════════════════════════
