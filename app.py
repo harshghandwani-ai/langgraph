@@ -54,16 +54,11 @@ app = FastAPI(
 # ── CORS — allow mobile origins and HF subdomains ─────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost",
-        "https://localhost",
-        "capacitor://localhost",
-        "https://harshghandwani-ai-agentic-expense-manager.hf.space"
-    ],
-    allow_origin_regex="capacitor:\/\/.*|https?:\/\/.*\.hf\.space|http:\/\/localhost:.*",
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # ── Routers ───────────────────────────────────────────────────────────────────

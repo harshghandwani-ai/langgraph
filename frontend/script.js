@@ -51,11 +51,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Platform Detection & API Base URL ────────────────────────────────────
     const GET_BASE_URL = () => {
-        // When running as a native app (Capacitor), we need a full URL to the backend.
-        // If BASE_URL is empty, it falls back to relative paths (works in browser).
-        const isMobile = window.location.protocol === 'capacitor:' || window.location.protocol === 'http:' && window.location.hostname === 'localhost' && !window.location.port;
-        const REMOTE_URL = 'https://harshghandwani-ai-agentic-expense-manager.hf.space'; // USER: Set your public server URL here for the APK to work
-        return isMobile ? REMOTE_URL : '';
+        const REMOTE_URL = 'https://harshghandwani-ai-agentic-expense-manager.hf.space';
+        const isHFSpace = window.location.hostname.includes('hf.space');
+        const isLocalWeb = window.location.hostname === 'localhost' && window.location.port;
+        // If loaded directly from HF Space or running a standard local web server on a port
+        if (isHFSpace || isLocalWeb) return '';
+        // Otherwise (e.g. Capacitor mobile runtime), use absolute backend URL
+        return REMOTE_URL;
     };
     const BASE_URL = GET_BASE_URL();
 
@@ -172,7 +174,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error('Login error details:', err);
-            showAuthError('Connection error. Is the server running?');
+            logToScreen('error', [`Login Fetch Error: ${err.message || err.toString()}`, `Target: ${BASE_URL}/api/auth/login`]);
+            showAuthError(`Connection error: ${err.message || 'Is the server running?'}`);
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<span>Sign In</span><i class="fa-solid fa-arrow-right"></i>';
@@ -211,7 +214,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error('Registration error details:', err);
-            showAuthError('Connection error. Is the server running?');
+            logToScreen('error', [`Register Fetch Error: ${err.message || err.toString()}`, `Target: ${BASE_URL}/api/auth/register`]);
+            showAuthError(`Connection error: ${err.message || 'Is the server running?'}`);
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<span>Create Account</span><i class="fa-solid fa-arrow-right"></i>';
