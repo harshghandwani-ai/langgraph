@@ -1,5 +1,5 @@
-from typing import Dict, Any, List
-from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
+from typing import Dict, Any
+from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_openai import ChatOpenAI
 from graph.state import AgentState
 from graph.tools import log_expense_tool, set_budget_tool, read_expenses_tool, read_budgets_tool
@@ -50,7 +50,6 @@ def executor_node(state: AgentState) -> Dict[str, Any]:
             
             # Execute standard tools or custom logic
             if tool_name == "log_expense_tool":
-                from graph.tools import log_expense_tool
                 res = log_expense_tool.invoke(tool_args)
                 tool_results.append((current_step, res))
                 response_texts.append(res)

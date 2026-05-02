@@ -46,7 +46,7 @@ async def transcribe_audio(websocket: WebSocket):
     dg_connection = client.listen.websocket.v("1")
 
     # Access current event loop to use in callbacks if they are sync
-    loop = asyncio.get_event_loop()
+    loop = asyncio.get_running_loop()
 
     # Callback for transcripts
     def on_message(self, result, **kwargs):

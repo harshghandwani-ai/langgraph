@@ -104,23 +104,3 @@ class ChatResponse(BaseModel):
                     "The frontend must call POST /api/expenses/confirm to save it.",
     )
 
-
-# ── Budget & Stats models ─────────────────────────────────────────────────────
-
-class BudgetStats(BaseModel):
-    name: str = Field(..., description="Category name (or 'total')")
-    amount: float = Field(..., description="Current total spent in this category.")
-    budget: Optional[float] = Field(None, description="Current budget set for this category.")
-
-
-class StatsResponse(BaseModel):
-    total_expenses: float
-    total_income: float
-    top_categories: list[BudgetStats]
-    total_budget: Optional[float] = None
-
-
-class BudgetUpsertRequest(BaseModel):
-    category: str
-    amount: float = Field(..., gt=0)
-    period: str = "monthly"

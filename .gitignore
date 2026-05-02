@@ -63,3 +63,17 @@ android/local.properties
 android/captures/
 *.apk
 *.aab
+
+# ── Benchmarking & Training (Not needed in deployment) ──
+dataset/
+finetuning.jsonl
+benchmark_output.txt
+benchmark_output.tmp
+evaluate_models.py
+generate_synthetic_data.py
+benchmark_lora.py
+deduplicate_dataset.py
+benchmark_inference_outputs.txt
+intent_router.py
+expenses_2026-04-07.csv
+data/expenses.db

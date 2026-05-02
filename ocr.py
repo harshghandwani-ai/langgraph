@@ -61,36 +61,4 @@ class ExpenseExtractor:
             logger.error("[OCR] Engine error on %s: %s", image_path, exc)
             raise RuntimeError(f"OCR engine failed: {exc}") from exc
 
-
-if __name__ == "__main__":
-    print("--- Starting OCR Test ---")
-    import traceback
-    try:
-        extractor = ExpenseExtractor()
-    except Exception as e:
-        print("EXCEPTION CAUGHT BY TRACEBACK BINDER:")
-        traceback.print_exc()
-        import sys
-        sys.exit(1)
-    
-    # Use an absolute path or ensure this file exists!
-    test_image_path = "uploads/asus.jpg"
-    
-    import os
-    # Get absolute path to be 100% sure
-    abs_path = os.path.abspath(test_image_path)
-    
-    if os.path.exists(abs_path):
-        print(f"[SUCCESS] Found file at: {abs_path}")
-        print("Running OCR (this may take a few seconds)...")
-        text = extractor.extract_raw_text(abs_path)
-        
-        if text.strip():
-            print("\n--- Extracted Text ---")
-            print(text)
-            print("----------------------")
-        else:
-            print("\n[WARNING] OCR finished but no text was detected.")
-    else:
-        print(f"[ERROR] File NOT found at: {abs_path}")
-        print("Please check if the 'uploads' folder exists and contains 'image.jpg'.")
+

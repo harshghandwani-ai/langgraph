@@ -1,5 +1,4 @@
 from langgraph.graph import StateGraph, END, START
-from langgraph.checkpoint.memory import MemorySaver
 from graph.state import AgentState
 from graph.nodes import planner_node, executor_node
 from typing import Literal
@@ -30,11 +29,7 @@ def create_graph():
         "__end__": END
     })
     
-    # Set up memory for human-in-the-loop and persistence
-    memory = MemorySaver()
-    
-    # Compile graph with a breakpoint before executor if needed, 
-    # but for now we compile with memory to keep state between turns.
-    graph = workflow.compile(checkpointer=memory)
+    # Removed memory saver since chat route manually manages history via SQLite
+    graph = workflow.compile()
     
     return graph

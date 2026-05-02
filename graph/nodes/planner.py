@@ -19,6 +19,8 @@ planner_llm = ChatOpenAI(
 def get_planner_prompt():
     return f"""You are PennyWise's Planner Agent. Today is {date.today().isoformat()}.
 Your job is to break down the user's request into a concrete plan using the available tools.
+Focus ONLY on the most recent user request. Use chat history exclusively for missing context (e.g., if the user corrects a previous message). Do NOT re-plan or re-execute older, already completed requests.
+
 If the request is a simple conversation, the plan should just be a single step: 'Respond to user contextually'.
 
 Valid Categories:

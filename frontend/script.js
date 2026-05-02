@@ -259,7 +259,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const welcomeContainer = document.querySelector('.welcome-container');
     const messageTemplate = document.getElementById('message-template');
 
-    const CATEGORIES = ['food', 'shopping', 'transport', 'entertainment', 'health', 'utilities', 'salary', 'gift', 'investment', 'other'];
+    const CATEGORIES = ['food', 'shopping', 'commute', 'travel', 'entertainment', 'health', 'utilities', 'salary', 'gift', 'investment', 'other'];
 
     // ── Set Budget UI Handler ─────────────────────────────────────────────
     const setBudgetBtn = document.querySelector('.action-card i.fa-filter')?.parentElement;

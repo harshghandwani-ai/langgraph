@@ -16,12 +16,10 @@ import logging
 import asyncio
 
 from auth_utils import TokenData, get_current_user
-from db import get_chat_history, insert_chat_message, upsert_budget
-from intent_router import route, client, ROUTER_SYSTEM_PROMPT
+from db import get_chat_history, insert_chat_message, clear_chat_history
 from config import OPENAI_MODEL
-from query_engine import execute_read_expenses, summarize_results
-from schemas import ChatRequest, ChatResponse, ExpensePreview
-from db import clear_chat_history
+from query_engine import summarize_results
+from schemas import ChatRequest, ExpensePreview
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -106,7 +104,6 @@ async def chat(
                 yield f"data: {json.dumps({'type': 'intent', 'value': 'log'})}\n\n"
                 yield f"data: {json.dumps({'type': 'log', 'answer': final_answer, 'expense': expense_preview})}\n\n"
             elif is_query:
-                from query_engine import summarize_results
                 yield f"data: {json.dumps({'type': 'intent', 'value': 'query'})}\n\n"
                 completion = summarize_results(body.message, query_db_res, history=history)
                 full_content = ""

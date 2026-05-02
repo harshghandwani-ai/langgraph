@@ -8,11 +8,14 @@ Pipeline:
   4. Return result (list of dicts or scalar string)
 """
 import json
+import logging
 from datetime import date
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from db import run_query
 from config import OPENAI_API_KEY, OPENAI_MODEL
+
+logger = logging.getLogger(__name__)
 
 class SQLResponse(BaseModel):
     sql: str = Field(description="The raw SQLite SELECT statement without any markdown fences")
@@ -21,31 +24,8 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 TODAY = date.today().isoformat()
 
-# ─── OpenAI tool definition ───────────────────────────────────────────────────
 
-TOOL_DEFINITION = {
-    "type": "function",
-    "function": {
-        "name": "read_expenses",
-        "description": (
-            "Query the local expenses SQLite database. "
-            "Use this whenever the user asks about their spending, "
-            "totals, categories, payment modes, or history."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "query": {
-                    "type": "string",
-                    "description": "The user's natural-language question about their expenses.",
-                }
-            },
-            "required": ["query"],
-        },
-    },
-}
-
-# ─── DB schema injected into the prompt ───────────────────────────────────────
+# ─── Pipeline steps ───────────────────────────────────────────────────────────
 
 DB_SCHEMA = """
 Table: expenses
@@ -137,7 +117,7 @@ def execute_read_expenses(query_text: str, history: list[dict] = None, user_id: 
     Returns a JSON string that is sent back to the LLM as the tool result.
     """
     sql = _generate_sql(query_text, history=history, user_id=user_id)
-    print(f"\n[TEMPORARY SQL LOG] Generated SQL for query '{query_text}':\n{sql}\n")
+    logger.debug("[SQL] query=%r sql=%s", query_text, sql)
     sql = _validate_sql(sql)
     rows = _execute_sql(sql)
     return _format_result(rows)
@@ -167,7 +147,7 @@ def summarize_results(user_input: str, tool_result: str, history: list[dict] = N
     response = client.chat.completions.create(
         model=OPENAI_MODEL,
         messages=messages,
-        temperature=0.3,
+        temperature=0.4,
         stream=True,
     )
     return response

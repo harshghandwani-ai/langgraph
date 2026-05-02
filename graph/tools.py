@@ -1,10 +1,6 @@
 import json
 from langchain_core.tools import tool
-from typing import Literal, Optional
-from db import upsert_budget
-from query_engine import execute_read_expenses
-from intent_router import LogExpenseArgs
-
+from typing import Literal
 @tool
 def log_expense_tool(
     amount: float,

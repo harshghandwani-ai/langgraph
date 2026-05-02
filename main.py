@@ -4,17 +4,12 @@ Expense Logger — main CLI entry point.
 Usage:
     python main.py
 
-Supports three modes in the same REPL:
-  * Log an expense  -- "I spent 500 on shoes using UPI"
-  * Query expenses  -- "how much did I spend this month"
-  * General chat    -- "what was my last query", "hello"
+Drives the same LangGraph agentic pipeline used by the FastAPI app,
+so CLI behaviour stays in sync with the web/mobile interface.
 """
 import json
 import sys
-from db import init_db, insert_expense
-from llm_extractor import extract_expense
-from intent_router import route
-from query_engine import execute_read_expenses, summarize_results
+from db import init_db
 
 
 BANNER = """
@@ -28,45 +23,18 @@ BANNER = """
 ╚══════════════════════════════════════════════════════╝
 """
 
-
-def _handle_log(user_input: str) -> None:
-    """Extract and persist a new expense from natural-language text."""
-    print("  ⏳ Extracting expense...")
-    try:
-        expense = extract_expense(user_input)
-    except Exception as e:
-        print(f"  ❌ Failed to extract expense: {e}\n")
-        return
-
-    try:
-        row_id = insert_expense(expense)
-    except Exception as e:
-        print(f"  ❌ Failed to save expense: {e}\n")
-        return
-
-    result = expense.model_dump()
-    result["id"] = row_id
-    print(f"  ✅ Saved expense #{row_id}:")
-    print("  " + json.dumps(result, indent=4).replace("\n", "\n  "))
-    print()
-
-
-def _handle_query(query_text: str, user_input: str) -> None:
-    """Execute SQL and print the AI's natural-language answer."""
-    print("  ⏳ Querying database...")
-    tool_result = execute_read_expenses(query_text)
-    answer = summarize_results(user_input, tool_result)
-    print(f"\n  🤖 {answer}\n")
-
-
-def _handle_chat(answer: str) -> None:
-    """Print the AI's conversational reply."""
-    print(f"\n  🤖 {answer}\n")
+# CLI uses a fixed placeholder user_id (no auth layer in the REPL)
+CLI_USER_ID = 0
 
 
 def main() -> None:
     init_db()
     print(BANNER)
+
+    from graph.workflow import create_graph
+    graph_app = create_graph()
+
+    history: list[dict] = []
 
     while True:
         try:
@@ -84,20 +52,43 @@ def main() -> None:
 
         print("  ⏳ Thinking...")
         try:
-            intent, payload = route(user_input)
-        except Exception as e:
-            print(f"  ❌ Error: {e}\n")
+            state = graph_app.invoke(
+                {
+                    "input": user_input,
+                    "user_id": CLI_USER_ID,
+                    "chat_history": history,
+                    "past_steps": [],
+                    "plan": [],
+                    "error_count": 0,
+                },
+                config={"configurable": {"thread_id": str(CLI_USER_ID)}},
+            )
+        except Exception as exc:
+            print(f"  ❌ Error: {exc}\n")
             continue
 
-        if intent == "query":
-            _handle_query(payload, user_input)
-            
-        elif intent == "chat":
-            _handle_chat(payload)
-          
-        else:
-            # payload is the original user text; run the log pipeline
-            _handle_log(payload)
+        final_answer = state.get("final_response") or ""
+        if not final_answer:
+            messages = state.get("messages", [])
+            final_answer = messages[-1].content if messages else "Okay, understood."
+
+        # Surface any expense preview produced by the executor
+        for _step_name, res_str in state.get("past_steps", []):
+            try:
+                res = json.loads(res_str)
+                if res.get("status") == "preview_ready":
+                    print("  📋 Expense preview:")
+                    print("  " + json.dumps(res["expense"], indent=4).replace("\n", "\n  "))
+            except Exception:
+                pass
+
+        print(f"\n  🤖 {final_answer}\n")
+
+        # Keep a rolling window of 8 messages for context
+        history.append({"role": "user", "content": user_input})
+        history.append({"role": "assistant", "content": final_answer})
+        history = history[-8:]
+
 
 if __name__ == "__main__":
     main()
