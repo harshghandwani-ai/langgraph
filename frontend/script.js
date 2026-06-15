@@ -591,6 +591,45 @@ document.addEventListener('DOMContentLoaded', () => {
             return `<option value="${c}" ${isSelected ? 'selected' : ''}>${c.charAt(0).toUpperCase() + c.slice(1)}</option>`;
         }).join('');
 
+        const PAYMENT_MODES = ['cash', 'card', 'online', 'UPI', 'bank transfer'];
+        let matchedIndex = -1;
+        const pmNormalized = (preview.payment_mode || '').toLowerCase().trim();
+        for (let i = 0; i < PAYMENT_MODES.length; i++) {
+            const p = PAYMENT_MODES[i].toLowerCase();
+            if (p === pmNormalized) {
+                matchedIndex = i;
+                break;
+            }
+        }
+        if (matchedIndex === -1) {
+            for (let i = 0; i < PAYMENT_MODES.length; i++) {
+                const p = PAYMENT_MODES[i].toLowerCase();
+                if (pmNormalized.includes(p) || p.includes(pmNormalized)) {
+                    matchedIndex = i;
+                    break;
+                }
+            }
+        }
+        if (matchedIndex === -1) {
+            if (pmNormalized.includes('credit') || pmNormalized.includes('debit') || pmNormalized.includes('visa') || pmNormalized.includes('mastercard') || pmNormalized.includes('amex')) {
+                matchedIndex = PAYMENT_MODES.indexOf('card');
+            } else if (pmNormalized.includes('gpay') || pmNormalized.includes('paytm') || pmNormalized.includes('phonepe') || pmNormalized.includes('g-pay') || pmNormalized.includes('net') || pmNormalized.includes('transfer') || pmNormalized.includes('bank')) {
+                matchedIndex = PAYMENT_MODES.indexOf('online');
+            }
+        }
+        if (matchedIndex === -1) {
+            matchedIndex = PAYMENT_MODES.indexOf('UPI');
+        }
+        if (matchedIndex === -1) {
+            matchedIndex = 0;
+        }
+
+        const paymentOptions = PAYMENT_MODES.map((p, idx) => {
+            const isSelected = idx === matchedIndex;
+            const displayLabel = p === 'UPI' ? 'UPI' : p.charAt(0).toUpperCase() + p.slice(1);
+            return `<option value="${p}" ${isSelected ? 'selected' : ''}>${displayLabel}</option>`;
+        }).join('');
+
         const ocrSection = preview.ocr_text
             ? `<details class="confirm-ocr">
                    <summary>View extracted text</summary>
@@ -628,7 +667,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="confirm-field">
                         <label for="cf-payment">Payment</label>
-                        <input id="cf-payment" type="text" value="${escapeHtml(preview.payment_mode)}" placeholder="e.g. UPI, cash" />
+                        <select id="cf-payment">${paymentOptions}</select>
                     </div>
                     <div class="confirm-field">
                         <label for="cf-desc">Description</label>
